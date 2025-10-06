@@ -1,0 +1,10 @@
+pandas
+numpy
+scikit-learn
+sentence_transformers
+nltk
+tqdm
+setproctitle
+docx
+PyPDF2
+pycryptodome

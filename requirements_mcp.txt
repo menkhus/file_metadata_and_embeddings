@@ -1,0 +1,5 @@
+mcp>=1.0.0
+numpy
+sentence-transformers
+faiss-cpu
+scikit-learn
