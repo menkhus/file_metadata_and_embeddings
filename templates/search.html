@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search</title>
+    <style>
+        body { font-family: monospace; margin: 40px; background: #f5f5f5; }
+        h1, h2, h3 { color: #333; }
+        form { background: #fff; padding: 20px; border: 1px solid #ddd; margin: 20px 0; }
+        label { display: block; margin: 10px 0 5px 0; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 5px; font-family: monospace; }
+        button { padding: 10px 20px; margin: 10px 5px 0 0; background: #333; color: #fff; border: none; cursor: pointer; }
+        button:hover { background: #555; }
+        .results { background: #fff; padding: 20px; border: 1px solid #ddd; margin: 20px 0; }
+        .result-item { background: #f9f9f9; padding: 10px; margin: 10px 0; border-left: 3px solid #333; }
+        .chunk-content { background: #fff; padding: 10px; margin: 10px 0; border: 1px solid #ddd; white-space: pre-wrap; }
+        .metadata { font-size: 11px; color: #666; }
+        .tabs { margin: 20px 0; }
+        .tab { display: inline-block; padding: 10px 20px; margin: 0 5px 0 0; background: #ddd; cursor: pointer; border: 1px solid #ccc; }
+        .tab.active { background: #333; color: #fff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        a { color: #333; }
+    </style>
+</head>
+<body>
+    <h1>Search (V2 Tools)</h1>
+    <p><a href="/">← Back to Home</a></p>
+
+    <div class="tabs">
+        <div class="tab active" onclick="showTab('fts')">Full-Text Search</div>
+        <div class="tab" onclick="showTab('semantic')">Semantic Search</div>
+        <div class="tab" onclick="showTab('files')">File Query</div>
+    </div>
+
+    <!-- Full-Text Search -->
+    <div id="fts" class="tab-content active">
+        <form id="ftsForm">
+            <h2>Full-Text Search (FTS5)</h2>
+
+            <label for="fts_query">Search Query:</label>
+            <input type="text" id="fts_query" name="query" placeholder="error handling" required>
+
+            <label for="fts_limit">Results Limit:</label>
+            <input type="number" id="fts_limit" name="limit" value="10" min="1" max="100">
+
+            <label for="fts_context">Context Chunks (before/after):</label>
+            <input type="number" id="fts_context" name="context" value="0" min="0" max="5">
+
+            <label for="fts_db">Database Path:</label>
+            <input type="text" id="fts_db" name="db_path" value="{{ default_db }}">
+
+            <button type="submit">Search</button>
+        </form>
+
+        <div class="results" id="ftsResults"></div>
+    </div>
+
+    <!-- Semantic Search -->
+    <div id="semantic" class="tab-content">
+        <form id="semanticForm">
+            <h2>Semantic Search (Embeddings)</h2>
+
+            <label for="sem_query">Search Query:</label>
+            <input type="text" id="sem_query" name="query" placeholder="authentication logic" required>
+
+            <label for="sem_top_k">Top K Results:</label>
+            <input type="number" id="sem_top_k" name="top_k" value="5" min="1" max="50">
+
+            <label for="sem_context">Context Chunks (before/after):</label>
+            <input type="number" id="sem_context" name="context" value="0" min="0" max="5">
+
+            <label for="sem_db">Database Path:</label>
+            <input type="text" id="sem_db" name="db_path" value="{{ default_db }}">
+
+            <button type="submit">Search</button>
+        </form>
+
+        <div class="results" id="semanticResults"></div>
+    </div>
+
+    <!-- File Query -->
+    <div id="files" class="tab-content">
+        <form id="filesForm">
+            <h2>File Query (Metadata)</h2>
+
+            <label for="created_since">Created Since (YYYY-MM-DD):</label>
+            <input type="text" id="created_since" name="created_since" placeholder="2024-01-01">
+
+            <label for="created_before">Created Before (YYYY-MM-DD):</label>
+            <input type="text" id="created_before" name="created_before" placeholder="2024-12-31">
+
+            <label for="greater_than">File Size Greater Than (bytes):</label>
+            <input type="number" id="greater_than" name="greater_than" placeholder="1024">
+
+            <label for="less_than">File Size Less Than (bytes):</label>
+            <input type="number" id="less_than" name="less_than" placeholder="1048576">
+
+            <label for="name_pattern">Filename Pattern:</label>
+            <input type="text" id="name_pattern" name="name_pattern" placeholder="test">
+
+            <label for="file_type">File Type:</label>
+            <input type="text" id="file_type" name="file_type" placeholder="py">
+
+            <label for="file_limit">Results Limit:</label>
+            <input type="number" id="file_limit" name="limit" value="100" min="1" max="1000">
+
+            <label for="file_db">Database Path:</label>
+            <input type="text" id="file_db" name="db_path" value="{{ default_db }}">
+
+            <button type="submit">Query Files</button>
+        </form>
+
+        <div class="results" id="filesResults"></div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // FTS Search
+        document.getElementById('ftsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            try {
+                const response = await fetch('/api/search/fts', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                displayResults('ftsResults', result);
+            } catch (error) {
+                alert('Error: ' + error);
+            }
+        });
+
+        // Semantic Search
+        document.getElementById('semanticForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            try {
+                const response = await fetch('/api/search/semantic', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                displayResults('semanticResults', result);
+            } catch (error) {
+                alert('Error: ' + error);
+            }
+        });
+
+        // File Query
+        document.getElementById('filesForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            try {
+                const response = await fetch('/api/search/files', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                displayFileResults('filesResults', result);
+            } catch (error) {
+                alert('Error: ' + error);
+            }
+        });
+
+        function displayResults(containerId, result) {
+            const container = document.getElementById(containerId);
+
+            if (result.status === 'error') {
+                container.innerHTML = '<p style="color: red;">Error: ' + result.message + '</p>';
+                return;
+            }
+
+            let html = '<h3>Results (' + result.count + ' found)</h3>';
+
+            if (result.results && result.results.length > 0) {
+                result.results.forEach(item => {
+                    const envelope = item.chunk_envelope || {};
+                    const metadata = envelope.metadata || {};
+                    const content = envelope.content || '';
+
+                    html += '<div class="result-item">';
+                    html += '<div class="metadata">';
+                    html += 'File: ' + (metadata.filename || 'Unknown') + ' | ';
+                    html += 'Chunk: ' + (metadata.chunk_index !== undefined ? metadata.chunk_index : '?') + ' | ';
+                    html += 'Strategy: ' + (metadata.chunk_strategy || 'unknown');
+
+                    if (item.match_rank) {
+                        html += ' | Rank: ' + item.match_rank;
+                    }
+                    if (item.similarity_score) {
+                        html += ' | Similarity: ' + item.similarity_score.toFixed(4);
+                    }
+
+                    html += '</div>';
+
+                    if (item.snippet) {
+                        html += '<div class="chunk-content"><strong>Snippet:</strong> ' + item.snippet + '</div>';
+                    }
+
+                    html += '<div class="chunk-content">' + escapeHtml(content.substring(0, 500)) + (content.length > 500 ? '...' : '') + '</div>';
+                    html += '</div>';
+                });
+            } else {
+                html += '<p>No results found.</p>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        function displayFileResults(containerId, result) {
+            const container = document.getElementById(containerId);
+
+            if (result.status === 'error') {
+                container.innerHTML = '<p style="color: red;">Error: ' + result.message + '</p>';
+                return;
+            }
+
+            let html = '<h3>Results (' + result.count + ' files found)</h3>';
+
+            if (result.results && result.results.length > 0) {
+                html += '<table border="1" cellpadding="5" style="width: 100%; border-collapse: collapse;">';
+                html += '<tr><th>File Path</th><th>Size</th><th>Type</th><th>Created</th></tr>';
+
+                result.results.forEach(file => {
+                    html += '<tr>';
+                    html += '<td>' + escapeHtml(file.file_path || '') + '</td>';
+                    html += '<td>' + (file.file_size || 0) + ' bytes</td>';
+                    html += '<td>' + (file.file_type || '') + '</td>';
+                    html += '<td>' + (file.created_date || '') + '</td>';
+                    html += '</tr>';
+                });
+
+                html += '</table>';
+            } else {
+                html += '<p>No results found.</p>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

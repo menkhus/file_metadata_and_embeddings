@@ -273,6 +273,26 @@ V1 includes legacy search tools (not in tools_v2):
 
 See `requirements.txt` for complete list.
 
+## macOS Native Integration
+
+**NEW:** Complete native macOS implementation with zero Python dependencies!
+
+- **SQLite FAISS Extension** - Native semantic search via SQL
+- **Background Indexer** - Non-intrusive file monitoring daemon
+- **Apple Intents** - Siri/Shortcuts integration (coming soon)
+- **SwiftUI App** - Menu bar application (coming soon)
+
+See `osx_support/` directory for complete implementation.
+
+**Quick Start:**
+```bash
+cd osx_support
+open FileSearchWorkspace.xcworkspace  # Open in Xcode
+# Or: ./build_all.sh
+```
+
+See [osx_support/GETTING_STARTED.md](osx_support/GETTING_STARTED.md) for details.
+
 ## MCP Integration
 
 MCP (Model Context Protocol) integration is planned for exposing file search tools to LLMs:

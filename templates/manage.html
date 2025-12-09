@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Database Management</title>
+    <style>
+        body { font-family: monospace; margin: 40px; background: #f5f5f5; }
+        h1, h2 { color: #333; }
+        .section { background: #fff; padding: 20px; border: 1px solid #ddd; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        table th, table td { padding: 8px; border: 1px solid #ddd; text-align: left; }
+        table th { background: #333; color: #fff; }
+        button { padding: 10px 20px; margin: 10px 5px 0 0; background: #333; color: #fff; border: none; cursor: pointer; }
+        button:hover { background: #555; }
+        button.danger { background: #c00; }
+        button.danger:hover { background: #f00; }
+        label { display: block; margin: 10px 0 5px 0; }
+        input[type="text"] { width: 100%; padding: 5px; font-family: monospace; }
+        select { width: 100%; padding: 5px; font-family: monospace; }
+        a { color: #333; }
+    </style>
+</head>
+<body>
+    <h1>Database Management</h1>
+    <p><a href="/">← Back to Home</a></p>
+
+    <div class="section">
+        <h2>Database Statistics</h2>
+        <button onclick="loadStats()">Refresh Stats</button>
+        <table id="statsTable">
+            <tr><th>Table/Metric</th><th>Count/Value</th></tr>
+            <tr><td colspan="2">Click "Refresh Stats" to load...</td></tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Delete Data</h2>
+        <form id="deleteForm">
+            <label for="table">Table:</label>
+            <select id="table" name="table" required>
+                <option value="file_metadata">file_metadata</option>
+                <option value="content_analysis">content_analysis</option>
+                <option value="text_chunks">text_chunks (V1)</option>
+                <option value="text_chunks_v2">text_chunks_v2 (V2)</option>
+                <option value="embeddings_index">embeddings_index</option>
+            </select>
+
+            <label for="file_path">File Path (leave empty to delete ALL from table):</label>
+            <input type="text" id="file_path" name="file_path" placeholder="/path/to/specific/file.py">
+
+            <label for="db_path">Database Path:</label>
+            <input type="text" id="db_path" name="db_path" value="{{ default_db }}">
+
+            <button type="submit" class="danger">Delete Data</button>
+        </form>
+    </div>
+
+    <div class="section">
+        <h2>Database Maintenance</h2>
+        <p>Vacuum the database to reclaim space after deletions.</p>
+        <form id="vacuumForm">
+            <label for="vacuum_db">Database Path:</label>
+            <input type="text" id="vacuum_db" name="db_path" value="{{ default_db }}">
+
+            <button type="submit">Vacuum Database</button>
+        </form>
+    </div>
+
+    <div class="section">
+        <h2>Component Management</h2>
+        <p>Enable/disable different processing components:</p>
+
+        <h3>V1 System Components</h3>
+        <ul>
+            <li><strong>file_metadata:</strong> Basic file metadata (name, size, dates, hash)</li>
+            <li><strong>content_analysis:</strong> NLP analysis (TF-IDF, LDA topics, keywords)</li>
+            <li><strong>text_chunks (V1):</strong> Original chunking system</li>
+            <li><strong>embeddings_index:</strong> Vector embeddings for semantic search</li>
+            <li><strong>content_fts:</strong> Full-text search index (V1)</li>
+        </ul>
+
+        <h3>V2 System Components</h3>
+        <ul>
+            <li><strong>text_chunks_v2:</strong> JSONB chunk envelopes with AI metadata</li>
+            <li><strong>chunks_fts:</strong> FTS5 full-text search (V2)</li>
+            <li><strong>FAISS index:</strong> External file for semantic search</li>
+        </ul>
+
+        <p><em>Note: To disable a component, delete its data using the form above. The processing code determines what to generate based on configuration.</em></p>
+    </div>
+
+    <script>
+        async function loadStats() {
+            const dbPath = document.getElementById('db_path').value;
+
+            try {
+                const response = await fetch('/api/db/stats?db_path=' + encodeURIComponent(dbPath));
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    const statsTable = document.getElementById('statsTable');
+                    let html = '<tr><th>Table/Metric</th><th>Count/Value</th></tr>';
+
+                    for (const [key, value] of Object.entries(result.stats)) {
+                        html += '<tr><td>' + key + '</td><td>' + value + '</td></tr>';
+                    }
+
+                    statsTable.innerHTML = html;
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error loading stats: ' + error);
+            }
+        }
+
+        // Delete form
+        document.getElementById('deleteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            const table = formData.get('table');
+            const filePath = formData.get('file_path');
+
+            const confirmMsg = filePath
+                ? 'Delete ' + filePath + ' from ' + table + '?'
+                : 'DELETE ALL DATA from ' + table + '? This cannot be undone!';
+
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/db/delete', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    alert('Deleted ' + result.rows_deleted + ' rows from ' + table);
+                    loadStats();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error deleting data: ' + error);
+            }
+        });
+
+        // Vacuum form
+        document.getElementById('vacuumForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            if (!confirm('Vacuum database? This may take a while for large databases.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/db/vacuum', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    alert('Database vacuumed successfully');
+                    loadStats();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error vacuuming database: ' + error);
+            }
+        });
+
+        // Load stats on page load
+        window.addEventListener('load', () => {
+            loadStats();
+        });
+    </script>
+</body>
+</html>

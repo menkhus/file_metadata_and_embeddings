@@ -1,0 +1,54 @@
+# Kiro ignore file - exclude from AI context
+
+# Large binary files
+*.dylib
+*.so
+*.a
+*.o
+*.onnx
+*.mlmodel
+*.mlpackage
+
+# Build artifacts
+.build/
+build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# Dependencies
+Pods/
+Carthage/
+.swiftpm/
+
+# Database files (can be large)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# Documentation (include selectively with #File when needed)
+# Uncomment these if you want to exclude docs by default:
+# osx_support/*.md
+# !osx_support/REQUIREMENTS.md
+# !osx_support/CURRENT_STATUS.md
+
+# Test data
+test_data/
+fixtures/
+*.test.db
+
+# Logs
+*.log
+logs/
+
+# macOS
+.DS_Store
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*

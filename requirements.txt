@@ -8,3 +8,8 @@ setproctitle
 docx
 PyPDF2
 pycryptodome
+fastapi
+uvicorn[standard]
+python-multipart
+jinja2
+faiss-cpu

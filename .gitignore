@@ -48,6 +48,16 @@ env/
 *.faiss
 *.index
 
+# macOS native builds
+osx_support/**/*.dylib
+osx_support/**/.build/
+osx_support/**/DerivedData/
+osx_support/**/*.xcuserstate
+osx_support/**/*.xcuserdatad/
+osx_support/**/xcshareddata/
+osx_support/**/*.o
+osx_support/**/test_*.db
+
 # NLTK data (downloaded at runtime)
 nltk_data/
 

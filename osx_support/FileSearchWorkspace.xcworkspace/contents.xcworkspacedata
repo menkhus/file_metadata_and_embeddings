@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "group:sqlite_faiss_extension/SQLiteFAISS.xcodeproj">
+   </FileRef>
+   <FileRef
+      location = "group:background_indexer/FileIndexer.xcodeproj">
+   </FileRef>
+   <FileRef
+      location = "group:intents/FileSearchIntents.xcodeproj">
+   </FileRef>
+   <FileRef
+      location = "group:gui_app/FileSearchApp.xcodeproj">
+   </FileRef>
+</Workspace>
