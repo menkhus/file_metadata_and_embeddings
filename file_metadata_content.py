@@ -1127,7 +1127,117 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error getting modified_date for {file_path}: {e}")
             return ''
-    
+
+    def get_content_analysis_by_hash(self, file_hash: str) -> Optional[Dict[str, Any]]:
+        """
+        Check if content with this hash has already been analyzed.
+        Returns the first matching content_analysis row as a dict, or None if not found.
+        Used to avoid re-processing identical file content that exists at a different path.
+        """
+        if not file_hash or file_hash in ('too_large', 'permission_denied', 'error', 'file_not_found'):
+            return None
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT file_path, file_hash, word_count, char_count, language,
+                           topic_summary, keywords, tfidf_keywords, lda_topics,
+                           sentiment_score, processing_status, error_message
+                    FROM content_analysis
+                    WHERE file_hash = ? AND processing_status = 'success'
+                    LIMIT 1
+                ''', (file_hash,))
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'source_file_path': row[0],
+                        'file_hash': row[1],
+                        'word_count': row[2],
+                        'char_count': row[3],
+                        'language': row[4],
+                        'topic_summary': row[5],
+                        'keywords': row[6],
+                        'tfidf_keywords': row[7],
+                        'lda_topics': row[8],
+                        'sentiment_score': row[9],
+                        'processing_status': row[10],
+                        'error_message': row[11]
+                    }
+                return None
+        except Exception as e:
+            logger.error(f"Error looking up content_analysis by hash {file_hash}: {e}")
+            return None
+
+    def copy_content_analysis_to_path(self, source_hash: str, target_path: str) -> bool:
+        """
+        Copy existing content_analysis, text_chunks, embeddings_index, and content_fts
+        from a source file (by hash) to a new target path. Avoids expensive re-processing
+        when identical content is found at a new location.
+        Returns True if successful, False otherwise.
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+
+                # Get source file path that has this hash
+                cursor.execute('''
+                    SELECT file_path FROM content_analysis
+                    WHERE file_hash = ? AND processing_status = 'success'
+                    LIMIT 1
+                ''', (source_hash,))
+                row = cursor.fetchone()
+                if not row:
+                    return False
+                source_path = row[0]
+
+                # Copy content_analysis row with new file_path
+                cursor.execute('''
+                    INSERT OR REPLACE INTO content_analysis
+                    (file_path, file_hash, word_count, char_count, language,
+                     topic_summary, keywords, tfidf_keywords, lda_topics,
+                     sentiment_score, processing_status, error_message, processing_time_seconds)
+                    SELECT ?, file_hash, word_count, char_count, language,
+                           topic_summary, keywords, tfidf_keywords, lda_topics,
+                           sentiment_score, processing_status, error_message, 0.0
+                    FROM content_analysis
+                    WHERE file_path = ?
+                ''', (target_path, source_path))
+
+                # Copy text_chunks
+                cursor.execute('DELETE FROM text_chunks WHERE file_path = ?', (target_path,))
+                cursor.execute('''
+                    INSERT INTO text_chunks (file_path, chunk_index, chunk_text, chunk_embedding)
+                    SELECT ?, chunk_index, chunk_text, chunk_embedding
+                    FROM text_chunks
+                    WHERE file_path = ?
+                ''', (target_path, source_path))
+
+                # Copy embeddings_index
+                cursor.execute('DELETE FROM embeddings_index WHERE file_path = ?', (target_path,))
+                cursor.execute('''
+                    INSERT INTO embeddings_index (file_path, chunk_index, embedding, metadata)
+                    SELECT ?, chunk_index, embedding, metadata
+                    FROM embeddings_index
+                    WHERE file_path = ?
+                ''', (target_path, source_path))
+
+                # Copy content_fts
+                cursor.execute('DELETE FROM content_fts WHERE file_path = ?', (target_path,))
+                cursor.execute('''
+                    INSERT INTO content_fts (file_path, content, content_id)
+                    SELECT ?, content, content_id
+                    FROM content_fts
+                    WHERE file_path = ?
+                ''', (target_path, source_path))
+
+                conn.commit()
+                logger.info(f"Copied content analysis from {source_path} to {target_path} (hash: {source_hash})")
+                return True
+
+        except Exception as e:
+            logger.error(f"Error copying content analysis to {target_path}: {e}")
+            return False
+
     def insert_content_analysis(self, analysis: ContentAnalysis, processing_time_seconds: float = None):
         """Insert content analysis into database with retry logic"""
         def _insert_operation():
@@ -1488,6 +1598,16 @@ class FileMetadataExtractor:
                 # If file was too large, stop here so the status is counted correctly
                 if metadata.processing_status == ProcessingStatus.SIZE_LIMIT_EXCEEDED.value:
                     return ProcessingStatus.SIZE_LIMIT_EXCEEDED
+
+                # Check if we already have content analysis for this hash (avoids re-processing
+                # identical content that exists at a different path - handles moved/copied files)
+                if not force and metadata.file_hash:
+                    existing_analysis = self.db_manager.get_content_analysis_by_hash(metadata.file_hash)
+                    if existing_analysis:
+                        # Copy existing analysis to this new path instead of re-analyzing
+                        if self.db_manager.copy_content_analysis_to_path(metadata.file_hash, str(file_path)):
+                            logger.debug(f"Reused existing analysis for {file_path} (hash: {metadata.file_hash})")
+                            return ProcessingStatus.SUCCESS
 
                 # Process text content for text, PDF, and DOCX files
                 try:
