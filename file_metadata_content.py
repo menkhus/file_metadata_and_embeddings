@@ -25,6 +25,7 @@ import re
 import time
 import signal
 import sys
+import fnmatch
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
@@ -1348,8 +1349,26 @@ class FileMetadataExtractor:
     # Default extensions to process (allowlist approach)
     DEFAULT_EXTENSIONS = {'.md', '.txt', '.py'}
 
+    # Default directory denylist patterns (glob-style, matched against full path)
+    # Use these to skip large external source trees
+    DEFAULT_DENYLIST_PATTERNS = {
+        'linux-6.*',      # Linux kernel source trees
+        'linux-6*',       # Alternative naming
+        'kernel-*',       # Generic kernel directories
+        'llvm-project*',  # LLVM source trees
+        'chromium*',      # Chromium source
+        'gecko-dev*',     # Firefox source
+        'webkit*',        # WebKit source
+    }
+
+    # Default directory allowlist (full paths that override denylist)
+    # Use these to include user project directories inside denied parent paths
+    DEFAULT_ALLOWLIST_PATHS = set()  # Empty by default, configure per-user
+
     def __init__(self, db_path: str = "file_metadata.db", skip_embeddings: bool = False,
-                 allowed_extensions: set = None):
+                 allowed_extensions: set = None,
+                 denylist_patterns: set = None,
+                 allowlist_paths: set = None):
         self.scanner = CrossPlatformFileScanner()
         self.text_processor = TextProcessor(skip_embeddings=skip_embeddings)
         self.db_manager = DatabaseManager(db_path)
@@ -1360,6 +1379,14 @@ class FileMetadataExtractor:
         self.allowed_extensions = allowed_extensions if allowed_extensions is not None else self.DEFAULT_EXTENSIONS
         # Sync scanner's supported_text_extensions with our allowlist
         self.scanner.supported_text_extensions = self.allowed_extensions
+
+        # Configure directory denylist patterns (glob-style, for large source trees)
+        self.denylist_patterns = denylist_patterns if denylist_patterns is not None else self.DEFAULT_DENYLIST_PATTERNS
+
+        # Configure directory allowlist (full paths that override denylist)
+        self.allowlist_paths = allowlist_paths if allowlist_paths is not None else self.DEFAULT_ALLOWLIST_PATHS
+        # Normalize allowlist paths to Path objects for comparison
+        self._normalized_allowlist = {Path(p).resolve() for p in self.allowlist_paths}
 
         # File descriptor management
         # Limit concurrent file operations to prevent EMFILE errors
@@ -1408,21 +1435,50 @@ class FileMetadataExtractor:
             return False
     
     def should_skip_directory(self, dir_path: Path) -> Tuple[bool, str]:
-        """Determine if a directory should be skipped entirely"""
+        """Determine if a directory should be skipped entirely.
+
+        Evaluation order:
+        1. Allowlist check - if path is in allowlist, never skip (overrides all other rules)
+        2. Hidden directory check
+        3. System directory exact-name match
+        4. Denylist pattern match (glob-style for large source trees)
+        5. Directory depth limit
+        """
         try:
-            # Skip hidden directories
+            # 1. Allowlist check - explicit includes override all skip rules
+            try:
+                resolved_path = dir_path.resolve()
+                if resolved_path in self._normalized_allowlist:
+                    return False, "Allowlisted directory"
+                # Also check if any parent is allowlisted (allows subdirs of allowlisted paths)
+                for allowlisted in self._normalized_allowlist:
+                    try:
+                        resolved_path.relative_to(allowlisted)
+                        return False, "Inside allowlisted directory"
+                    except ValueError:
+                        continue
+            except (OSError, RuntimeError):
+                pass  # Path resolution failed, continue with other checks
+
+            # 2. Skip hidden directories
             if self.is_hidden_path(dir_path):
                 return True, "Hidden directory"
-            
-            # Skip system directories
+
+            # 3. Skip system directories (exact name match)
             system_dirs = {
                 '.git', '.svn', '.hg', '.bzr',  # Version control
                 '__pycache__', '.pytest_cache', '.tox', '.mypy_cache', '.ruff_cache',  # Python
                 'node_modules', '.npm', '.yarn', '.pnpm',  # JavaScript package managers
                 '.next', '.nuxt', '.output', '.svelte-kit',  # JS framework build dirs
                 '.vscode', '.idea', '.vs', '.fleet',  # IDEs
-                'venv', '.venv', 'env', '.env', '.virtualenvs',  # Python virtual environments
-                'build', 'dist', '.build', '.dist', 'out',  # Build artifacts
+                # Python virtual environments and library directories
+                'venv', '.venv', 'env', '.env', '.virtualenvs',
+                'virtualenv', '.virtualenv',  # virtualenv tool directories
+                'site-packages',  # Python installed packages
+                'Lib',  # Windows Python library directory
+                '.pixi', '.conda', 'conda-env', 'conda-envs',  # Conda/Pixi environments
+                # Build artifacts
+                'build', 'dist', '.build', '.dist', 'out',
                 'target', '.cargo',  # Rust
                 'bin', 'obj',  # C# build directories
                 '.gradle', '.mvn', '.m2',  # Java build tools
@@ -1432,11 +1488,17 @@ class FileMetadataExtractor:
                 'logs', 'log',  # Log directories
                 'Thumbs.db', '.DS_Store'  # System files (though these are files, not dirs)
             }
-            
+
             if dir_path.name in system_dirs:
                 return True, "System directory"
-            
-            # Skip very deep nested directories (potential infinite recursion protection)
+
+            # 4. Denylist pattern matching (glob-style for large source trees)
+            dir_name = dir_path.name
+            for pattern in self.denylist_patterns:
+                if fnmatch.fnmatch(dir_name, pattern):
+                    return True, f"Matches denylist pattern: {pattern}"
+
+            # 5. Skip very deep nested directories (potential infinite recursion protection)
             if len(dir_path.parts) > 20:
                 return True, "Directory too deep"
             
@@ -1924,6 +1986,10 @@ def main():
     parser.add_argument("--add-embeddings", action="store_true", help="Backfill embeddings for files processed with --skip-embeddings")
     parser.add_argument("--extensions", type=str, default=".md,.txt,.py",
                         help="Comma-separated list of file extensions to process (default: .md,.txt,.py)")
+    parser.add_argument("--denylist", type=str, default=None,
+                        help="Comma-separated glob patterns for directories to skip (e.g., 'linux-6.*,kernel-*')")
+    parser.add_argument("--allowlist", type=str, default=None,
+                        help="Comma-separated full paths to include even if inside denied directories")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
     parser.add_argument("--debug", action="store_true", help="Debug logging")
 
@@ -1941,11 +2007,23 @@ def main():
     allowed_extensions = {ext.strip() if ext.strip().startswith('.') else f'.{ext.strip()}'
                           for ext in args.extensions.split(',')}
 
+    # Parse denylist patterns (use defaults if not specified)
+    denylist_patterns = None
+    if args.denylist:
+        denylist_patterns = {p.strip() for p in args.denylist.split(',')}
+
+    # Parse allowlist paths (use defaults if not specified)
+    allowlist_paths = None
+    if args.allowlist:
+        allowlist_paths = {p.strip() for p in args.allowlist.split(',')}
+
     try:
         # Handle --add-embeddings mode (backfill embeddings for files processed with --skip-embeddings)
         if args.add_embeddings:
             extractor = FileMetadataExtractor(args.db, skip_embeddings=False,
-                                              allowed_extensions=allowed_extensions)
+                                              allowed_extensions=allowed_extensions,
+                                              denylist_patterns=denylist_patterns,
+                                              allowlist_paths=allowlist_paths)
             results = extractor.backfill_embeddings(max_workers=args.workers)
             print(f"\nEmbedding Backfill Results:")
             print(f"  Files processed: {results['files_processed']}")
@@ -1955,7 +2033,9 @@ def main():
 
         # Create extractor and scan directory
         extractor = FileMetadataExtractor(args.db, skip_embeddings=args.skip_embeddings,
-                                          allowed_extensions=allowed_extensions)
+                                          allowed_extensions=allowed_extensions,
+                                          denylist_patterns=denylist_patterns,
+                                          allowlist_paths=allowlist_paths)
         results = extractor.scan_directory(args.directory, args.workers, force=args.force)
 
 
