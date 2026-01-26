@@ -158,13 +158,9 @@ class CrossPlatformFileScanner:
     
     def __init__(self):
         self.system = platform.system()
-        self.supported_text_extensions = {
-            '.txt', '.md', '.py', '.js', '.html', '.css', '.json', '.xml', '.yml', '.yaml',
-            '.csv', '.tsv', '.log', '.cfg', '.ini', '.conf', '.sh', '.bat', '.ps1',
-            '.c', '.cpp', '.h', '.hpp', '.java', '.cs', '.php', '.rb', '.go', '.rs',
-            '.sql', '.r', '.m', '.swift', '.kt', '.dart', '.scala', '.clj', '.hs',
-            '.tex', '.rtf', '.org', '.rst', '.wiki'
-        }
+        # Default extensions for text processing (matches FileMetadataExtractor.DEFAULT_EXTENSIONS)
+        # This is used for content extraction; actual file discovery uses the allowlist in should_skip_file()
+        self.supported_text_extensions = {'.md', '.txt', '.py'}
         self.max_file_size = 100 * 1024 * 1024  # 100MB
         self.encoding_detection_sample_size = 10000
     
@@ -433,16 +429,20 @@ class CrossPlatformFileScanner:
 
 class TextProcessor:
     """Advanced text processing and analysis with enhanced error handling"""
-    
-    def __init__(self):
+
+    def __init__(self, skip_embeddings: bool = False):
         self.stop_words = set()
         self.lemmatizer = None
         self.sentence_model = None
         self.nltk_available = NLTK_AVAILABLE
-        
+        self.skip_embeddings = skip_embeddings
+
         # Initialize components with error handling
         self._initialize_nltk_components()
-        self._initialize_sentence_transformer()
+        if not skip_embeddings:
+            self._initialize_sentence_transformer()
+        else:
+            logger.info("Skipping sentence transformer initialization (--skip-embeddings)")
     
     def _initialize_nltk_components(self):
         """Initialize NLTK components with error handling"""
@@ -778,57 +778,35 @@ class TextProcessor:
             word_count = len(content.split())
             char_count = len(content)
             
-            # Clean content
-            try:
-                clean_content = self.clean_text(content)
-            except Exception as e:
-                logger.warning(f"Error cleaning content for {file_path}: {e}")
-                clean_content = content[:1000]  # Fallback
-            
-            # Extract features with error handling
-            try:
-                keywords = self.extract_keywords(clean_content)
-            except Exception as e:
-                logger.warning(f"Error extracting keywords for {file_path}: {e}")
-                keywords = []
-            
-            try:
-                topic_summary = self.generate_topic_summary(content)
-            except Exception as e:
-                logger.warning(f"Error generating summary for {file_path}: {e}")
-                topic_summary = content[:200] if content else "No content"
-            
+            # Chunk text for FTS and future FAISS
             try:
                 chunks = self.chunk_text(content)
             except Exception as e:
                 logger.warning(f"Error chunking text for {file_path}: {e}")
                 chunks = [content[:1000]] if content else []
-            
-            # Generate embeddings for chunks
-            try:
-                embeddings = self.generate_embeddings(chunks) if chunks else []
-            except Exception as e:
-                logger.warning(f"Error generating embeddings for {file_path}: {e}")
-                embeddings = []
-            
-            # For TF-IDF and LDA, process the chunks as separate documents
+
+            # Generate embeddings for chunks (skip if --skip-embeddings flag set)
+            embeddings = []
+            if not self.skip_embeddings:
+                try:
+                    embeddings = self.generate_embeddings(chunks) if chunks else []
+                except Exception as e:
+                    logger.warning(f"Error generating embeddings for {file_path}: {e}")
+
+            # TF-IDF keywords (the only keyword extraction we need)
             tfidf_keywords = []
-            lda_topics = []
-            
             if chunks and len(chunks) > 1:
                 try:
-                    # Extract TF-IDF keywords from chunks
                     tfidf_keywords = self.extract_tfidf_keywords(chunks)
                 except Exception as e:
                     logger.warning(f"Error extracting TF-IDF keywords for {file_path}: {e}")
-                    tfidf_keywords = []
-                
-                try:
-                    # Extract LDA topics from chunks
-                    lda_topics = self.extract_lda_topics(chunks)
-                except Exception as e:
-                    logger.warning(f"Error extracting LDA topics for {file_path}: {e}")
-                    lda_topics = []
+
+            # Dropped: NLTK keywords (redundant with TF-IDF)
+            # Dropped: LDA topics (slow, better done corpus-wide offline)
+            # Dropped: topic_summary (was just first sentences, not real summary)
+            keywords = []
+            lda_topics = []
+            topic_summary = ""
             
             return ContentAnalysis(
                 file_path=file_path,
@@ -1080,7 +1058,22 @@ class DatabaseManager:
                         content_id UNINDEXED
                     )
                 ''')
-                
+
+                # Cascade delete trigger: when file_metadata row is deleted,
+                # automatically delete related rows in all dependent tables.
+                # WARNING: Not suitable for bulk deletes (1000s of rows) - can cause OOM.
+                # For bulk cleanup, delete the database and rescan instead.
+                cursor.execute('''
+                    CREATE TRIGGER IF NOT EXISTS cascade_delete_file
+                    AFTER DELETE ON file_metadata
+                    BEGIN
+                        DELETE FROM content_analysis WHERE file_path = OLD.file_path;
+                        DELETE FROM text_chunks WHERE file_path = OLD.file_path;
+                        DELETE FROM embeddings_index WHERE file_path = OLD.file_path;
+                        DELETE FROM content_fts WHERE file_path = OLD.file_path;
+                    END
+                ''')
+
                 conn.commit()
                 logger.info("Database initialized successfully")
         except Exception as e:
@@ -1352,12 +1345,21 @@ class DatabaseManager:
 class FileMetadataExtractor:
     """Main file metadata extraction orchestrator with enhanced error handling"""
 
-    def __init__(self, db_path: str = "file_metadata.db"):
+    # Default extensions to process (allowlist approach)
+    DEFAULT_EXTENSIONS = {'.md', '.txt', '.py'}
+
+    def __init__(self, db_path: str = "file_metadata.db", skip_embeddings: bool = False,
+                 allowed_extensions: set = None):
         self.scanner = CrossPlatformFileScanner()
-        self.text_processor = TextProcessor()
+        self.text_processor = TextProcessor(skip_embeddings=skip_embeddings)
         self.db_manager = DatabaseManager(db_path)
         self.thread_lock = threading.Lock()
         self.interrupt_handler = GracefulInterruptHandler()
+
+        # Configure allowed extensions (allowlist approach)
+        self.allowed_extensions = allowed_extensions if allowed_extensions is not None else self.DEFAULT_EXTENSIONS
+        # Sync scanner's supported_text_extensions with our allowlist
+        self.scanner.supported_text_extensions = self.allowed_extensions
 
         # File descriptor management
         # Limit concurrent file operations to prevent EMFILE errors
@@ -1415,15 +1417,19 @@ class FileMetadataExtractor:
             # Skip system directories
             system_dirs = {
                 '.git', '.svn', '.hg', '.bzr',  # Version control
-                '__pycache__', '.pytest_cache', '.tox',  # Python
-                'node_modules', '.npm', '.yarn',  # JavaScript
-                '.vscode', '.idea', '.vs',  # IDEs
-                'venv', '.venv', 'env', '.env',  # Python virtual environments
-                'build', 'dist', '.build', '.dist',  # Build artifacts
-                'target',  # Rust, Java build directory
+                '__pycache__', '.pytest_cache', '.tox', '.mypy_cache', '.ruff_cache',  # Python
+                'node_modules', '.npm', '.yarn', '.pnpm',  # JavaScript package managers
+                '.next', '.nuxt', '.output', '.svelte-kit',  # JS framework build dirs
+                '.vscode', '.idea', '.vs', '.fleet',  # IDEs
+                'venv', '.venv', 'env', '.env', '.virtualenvs',  # Python virtual environments
+                'build', 'dist', '.build', '.dist', 'out',  # Build artifacts
+                'target', '.cargo',  # Rust
                 'bin', 'obj',  # C# build directories
-                '.gradle', '.mvn',  # Java build tools
-                'vendor',  # Various package managers
+                '.gradle', '.mvn', '.m2',  # Java build tools
+                'vendor', 'Pods',  # Various package managers (Go, iOS)
+                'coverage', '.coverage', 'htmlcov',  # Test coverage
+                '.cache', '.parcel-cache', '.turbo',  # Various caches
+                'logs', 'log',  # Log directories
                 'Thumbs.db', '.DS_Store'  # System files (though these are files, not dirs)
             }
             
@@ -1482,7 +1488,10 @@ class FileMetadataExtractor:
         return all_files
     
     def should_skip_file(self, file_path: Path) -> bool:
-        """Determine if a file should be skipped during discovery"""
+        """Determine if a file should be skipped during discovery.
+
+        Uses allowlist approach: only process files with extensions in allowed_extensions.
+        """
         try:
             # Skip very large files (>100MB) early
             try:
@@ -1491,34 +1500,22 @@ class FileMetadataExtractor:
             except (OSError, PermissionError):
                 # If we can't get stats, we'll let the later processing handle it
                 pass
-            
-            # Skip specific file types that are typically not useful
-            skip_extensions = {
-                '.exe', '.dll', '.so', '.dylib',  # Executables and libraries
-                '.bin', '.dat', '.db', '.sqlite',  # Binary data files
-                '.img', '.iso', '.dmg',  # Disk images
-                '.zip', '.rar', '.7z', '.tar', '.gz',  # Archives
-                '.mp4', '.avi', '.mkv', '.mov',  # Video files
-                '.mp3', '.wav', '.flac', '.aac',  # Audio files
-                '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff',  # Image files
-                '.xls', '.xlsx', '.ppt', '.pptx',  # Office documents
-                '.lock', '.tmp', '.temp', '.cache'  # Temporary files
-            }
-            
-            if file_path.suffix.lower() in skip_extensions:
+
+            # Allowlist approach: only accept files with allowed extensions
+            if file_path.suffix.lower() not in self.allowed_extensions:
                 return True
-            
-            # Skip files with certain patterns
+
+            # Skip files with certain patterns (system/config files we never want)
             skip_patterns = {
                 'thumbs.db', '.ds_store', 'desktop.ini',  # System files
                 '.gitkeep', '.gitignore', '.gitmodules',  # Git files
                 'package-lock.json', 'yarn.lock',  # Lock files
                 '.env', '.env.local', '.env.production'  # Environment files
             }
-            
+
             if file_path.name.lower() in skip_patterns:
                 return True
-            
+
             return False
         except Exception:
             return False
@@ -1667,7 +1664,7 @@ class FileMetadataExtractor:
     
     def scan_directory(self, directory_path: str, max_workers: int = 4, force: bool = False) -> Dict[str, Any]:
         # Limit max workers to prevent resource exhaustion
-        max_workers = min(max_workers, 8)  # Cap at 8 workers maximum
+        max_workers = min(max_workers, 32)  # Allow up to 32 workers for I/O-bound work
         try:
             import setproctitle
             setproctitle.setproctitle("file_metadata_content.py-thread-manager")
@@ -1814,6 +1811,101 @@ class FileMetadataExtractor:
             logger.error(f"Error during directory scan: {e}")
             raise
 
+    def backfill_embeddings(self, max_workers: int = 4) -> Dict[str, Any]:
+        """Backfill embeddings for files that have content but no embeddings.
+
+        This allows you to run initial processing with --skip-embeddings for speed,
+        then later add embeddings with --add-embeddings when you have time.
+        """
+        from tqdm import tqdm
+
+        logger.info("Starting embedding backfill...")
+
+        # Find files with chunks but no embeddings
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            # Find files in text_chunks that don't have entries in embeddings_index
+            cursor.execute('''
+                SELECT DISTINCT tc.file_path
+                FROM text_chunks tc
+                LEFT JOIN embeddings_index ei ON tc.file_path = ei.file_path
+                WHERE ei.file_path IS NULL
+            ''')
+            files_to_process = [row[0] for row in cursor.fetchall()]
+
+        if not files_to_process:
+            logger.info("No files need embedding backfill.")
+            return {'files_processed': 0, 'files_successful': 0, 'files_failed': 0}
+
+        logger.info(f"Found {len(files_to_process)} files needing embeddings")
+
+        # Initialize sentence transformer (we need it for this operation)
+        if self.text_processor.sentence_model is None:
+            self.text_processor._initialize_sentence_transformer()
+            if self.text_processor.sentence_model is None:
+                logger.error("Could not initialize sentence transformer for backfill")
+                return {'files_processed': 0, 'files_successful': 0, 'files_failed': 0, 'error': 'No sentence transformer'}
+
+        files_successful = 0
+        files_failed = 0
+
+        for file_path in tqdm(files_to_process, desc="Backfilling embeddings"):
+            try:
+                # Get chunks for this file
+                with self.db_manager.get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute('''
+                        SELECT chunk_index, chunk_text FROM text_chunks
+                        WHERE file_path = ? ORDER BY chunk_index
+                    ''', (file_path,))
+                    chunks = [(row[0], row[1]) for row in cursor.fetchall()]
+
+                if not chunks:
+                    continue
+
+                # Generate embeddings
+                chunk_texts = [c[1] for c in chunks]
+                embeddings = self.text_processor.generate_embeddings(chunk_texts)
+
+                if not embeddings:
+                    files_failed += 1
+                    continue
+
+                # Store embeddings
+                with self.db_manager.get_connection() as conn:
+                    cursor = conn.cursor()
+                    for (chunk_idx, _), embedding in zip(chunks, embeddings):
+                        try:
+                            embedding_json = json.dumps(embedding)
+                            cursor.execute('''
+                                INSERT OR REPLACE INTO embeddings_index (file_path, chunk_index, embedding, metadata)
+                                VALUES (?, ?, ?, NULL)
+                            ''', (file_path, chunk_idx, embedding_json))
+
+                            # Also update chunk_embedding in text_chunks
+                            embedding_blob = np.array(embedding).tobytes()
+                            cursor.execute('''
+                                UPDATE text_chunks SET chunk_embedding = ?
+                                WHERE file_path = ? AND chunk_index = ?
+                            ''', (embedding_blob, file_path, chunk_idx))
+                        except Exception as e:
+                            logger.warning(f"Error storing embedding for {file_path} chunk {chunk_idx}: {e}")
+                    conn.commit()
+
+                files_successful += 1
+
+            except Exception as e:
+                logger.warning(f"Error backfilling embeddings for {file_path}: {e}")
+                files_failed += 1
+
+        results = {
+            'files_processed': len(files_to_process),
+            'files_successful': files_successful,
+            'files_failed': files_failed
+        }
+        logger.info(f"Embedding backfill complete: {results}")
+        return results
+
 def main():
     try:
         import setproctitle
@@ -1828,6 +1920,10 @@ def main():
     parser.add_argument("--db", default="file_metadata.db", help="Database file path")
     parser.add_argument("--workers", type=int, default=4, help="Number of worker threads")
     parser.add_argument("--force", action="store_true", help="Force rescan all files even if unchanged/in database")
+    parser.add_argument("--skip-embeddings", action="store_true", help="Skip sentence transformer embeddings (faster, but no semantic search)")
+    parser.add_argument("--add-embeddings", action="store_true", help="Backfill embeddings for files processed with --skip-embeddings")
+    parser.add_argument("--extensions", type=str, default=".md,.txt,.py",
+                        help="Comma-separated list of file extensions to process (default: .md,.txt,.py)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
     parser.add_argument("--debug", action="store_true", help="Debug logging")
 
@@ -1841,9 +1937,25 @@ def main():
     else:
         logging.getLogger().setLevel(logging.WARNING)
 
+    # Parse extensions from comma-separated string
+    allowed_extensions = {ext.strip() if ext.strip().startswith('.') else f'.{ext.strip()}'
+                          for ext in args.extensions.split(',')}
+
     try:
+        # Handle --add-embeddings mode (backfill embeddings for files processed with --skip-embeddings)
+        if args.add_embeddings:
+            extractor = FileMetadataExtractor(args.db, skip_embeddings=False,
+                                              allowed_extensions=allowed_extensions)
+            results = extractor.backfill_embeddings(max_workers=args.workers)
+            print(f"\nEmbedding Backfill Results:")
+            print(f"  Files processed: {results['files_processed']}")
+            print(f"  Files successful: {results['files_successful']}")
+            print(f"  Files failed: {results['files_failed']}")
+            return
+
         # Create extractor and scan directory
-        extractor = FileMetadataExtractor(args.db)
+        extractor = FileMetadataExtractor(args.db, skip_embeddings=args.skip_embeddings,
+                                          allowed_extensions=allowed_extensions)
         results = extractor.scan_directory(args.directory, args.workers, force=args.force)
 
 
