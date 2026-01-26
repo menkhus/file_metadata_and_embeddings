@@ -1028,6 +1028,7 @@ class DatabaseManager:
                     CREATE TABLE IF NOT EXISTS processing_stats (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         session_id TEXT NOT NULL,
+                        directory TEXT,
                         total_files INTEGER,
                         successful_files INTEGER,
                         failed_files INTEGER,
@@ -1042,6 +1043,12 @@ class DatabaseManager:
                         duration_seconds REAL
                     )
                 ''')
+                # Add directory column if missing (migration for existing databases)
+                try:
+                    cursor.execute('ALTER TABLE processing_stats ADD COLUMN directory TEXT')
+                except sqlite3.OperationalError:
+                    pass  # Column already exists
+                cursor.execute('CREATE INDEX IF NOT EXISTS idx_stats_directory ON processing_stats(directory, start_time DESC)')
                 
                 # Create indexes for better search performance
                 cursor.execute('CREATE INDEX IF NOT EXISTS idx_file_path ON file_metadata(file_path)')
@@ -1325,13 +1332,14 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 cursor.execute('''
                     INSERT INTO processing_stats (
-                        session_id, total_files, successful_files, failed_files,
+                        session_id, directory, total_files, successful_files, failed_files,
                         permission_denied_files, size_limit_exceeded_files,
                         encoding_error_files, file_not_found_files, timeout_files, unknown_error_files,
                         start_time, end_time, duration_seconds
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
-                    session_id, stats.get('total_files', 0), stats.get('successful_files', 0),
+                    session_id, stats.get('directory'),
+                    stats.get('total_files', 0), stats.get('successful_files', 0),
                     stats.get('failed_files', 0), stats.get('permission_denied_files', 0),
                     stats.get('size_limit_exceeded_files', 0), stats.get('encoding_error_files', 0),
                     stats.get('file_not_found_files', 0), stats.get('timeout_files', 0), stats.get('unknown_error_files', 0),
@@ -1342,6 +1350,35 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error recording processing stats: {e}")
             return False
+
+    def get_last_scan_time(self, directory: str) -> Optional[datetime]:
+        """Get the start time of the last successful scan for a directory.
+
+        Returns the start_time of the most recent scan where at least some files
+        were successfully processed. Returns None if no previous scan exists.
+
+        Used during discovery phase to skip files that haven't changed since last scan.
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                # Find most recent scan of this directory (or parent directory) with successful files
+                # We check for parent directories to handle rescans of subdirectories
+                cursor.execute('''
+                    SELECT start_time FROM processing_stats
+                    WHERE directory IS NOT NULL
+                      AND (directory = ? OR ? LIKE directory || '%')
+                      AND successful_files > 0
+                    ORDER BY start_time DESC
+                    LIMIT 1
+                ''', (directory, directory))
+                row = cursor.fetchone()
+                if row and row[0]:
+                    return datetime.fromisoformat(row[0])
+                return None
+        except Exception as e:
+            logger.warning(f"Error getting last scan time for {directory}: {e}")
+            return None
 
 class FileMetadataExtractor:
     """Main file metadata extraction orchestrator with enhanced error handling"""
@@ -1506,11 +1543,29 @@ class FileMetadataExtractor:
         except Exception as e:
             return False, f"Error checking directory: {e}"
     
-    def discover_files(self, directory_path: Path) -> List[Path]:
-        """Discover all files in directory, excluding hidden and system files/directories."""
+    def discover_files(self, directory_path: Path, last_scan_time: Optional[datetime] = None,
+                        force: bool = False) -> Tuple[List[Path], int]:
+        """Discover files in directory, filtering unchanged files during discovery.
+
+        Args:
+            directory_path: Root directory to scan
+            last_scan_time: If provided, skip files with mtime <= this time (unless force=True)
+            force: If True, include all files regardless of mtime
+
+        Returns:
+            Tuple of (list of files to process, count of skipped unchanged files)
+
+        This filters unchanged files during discovery rather than during processing,
+        avoiding the overhead of building a large work queue only to skip most items.
+        """
         all_files = []
+        skipped_unchanged = 0
+
+        # Convert last_scan_time to timestamp for efficient comparison
+        last_scan_ts = last_scan_time.timestamp() if last_scan_time else None
 
         def _scan_directory(current_dir: Path, depth: int = 0) -> None:
+            nonlocal skipped_unchanged
             if depth > 20:
                 return
             if self.interrupt_handler.should_shutdown():
@@ -1534,6 +1589,15 @@ class FileMetadataExtractor:
                             continue
                         if entry.is_file():
                             if not self.should_skip_file(entry):
+                                # Check mtime against last scan time (skip unchanged files early)
+                                if not force and last_scan_ts:
+                                    try:
+                                        file_mtime = entry.stat().st_mtime
+                                        if file_mtime <= last_scan_ts:
+                                            skipped_unchanged += 1
+                                            continue  # Skip - file unchanged since last scan
+                                    except (OSError, PermissionError):
+                                        pass  # Can't get mtime, include file to be safe
                                 all_files.append(entry)
                         elif entry.is_dir():
                             _scan_directory(entry, depth + 1)
@@ -1547,7 +1611,7 @@ class FileMetadataExtractor:
                 logger.warning(f"Error scanning directory {current_dir}: {e}")
 
         _scan_directory(directory_path)
-        return all_files
+        return all_files, skipped_unchanged
     
     def should_skip_file(self, file_path: Path) -> bool:
         """Determine if a file should be skipped during discovery.
@@ -1756,20 +1820,37 @@ class FileMetadataExtractor:
 
             logger.info(f"Scanning directory: {directory_path}")
 
-            # Discover files (this now excludes hidden files and directories)
-            logger.info("Discovering files...")
-            all_files = self.discover_files(directory_path)
+            # Get last scan time for incremental processing
+            last_scan_time = None
+            if not force:
+                last_scan_time = self.db_manager.get_last_scan_time(str(directory_path))
+                if last_scan_time:
+                    logger.info(f"Last scan: {last_scan_time.isoformat()} - skipping unchanged files")
+                else:
+                    logger.info("No previous scan found - processing all files")
 
-            logger.info(f"Found {len(all_files)} files to process (hidden files/directories excluded)")
+            # Discover files, filtering unchanged files during discovery (not during processing)
+            # This avoids building a large work queue only to skip most items
+            logger.info("Discovering files...")
+            all_files, skipped_unchanged = self.discover_files(directory_path, last_scan_time, force)
+
+            if skipped_unchanged > 0:
+                logger.info(f"Found {len(all_files)} files to process, {skipped_unchanged} unchanged files skipped during discovery")
+            else:
+                logger.info(f"Found {len(all_files)} files to process (hidden files/directories excluded)")
 
             # Reset statistics
             self.stats = {key: 0 for key in self.stats}
             self.stats['total_files'] = len(all_files)
 
             if len(all_files) == 0:
-                logger.warning("No files found to process")
+                if skipped_unchanged > 0:
+                    logger.info(f"No new files to process ({skipped_unchanged} unchanged files skipped)")
+                else:
+                    logger.warning("No files found to process")
                 return {
                     **self.stats,
+                    'skipped_unchanged': skipped_unchanged,
                     'directories_updated': 0,
                     'session_id': session_id,
                     'duration_seconds': 0,
@@ -1851,6 +1932,7 @@ class FileMetadataExtractor:
 
             processing_stats = {
                 **self.stats,
+                'directory': str(directory_path),
                 'start_time': start_time.isoformat(),
                 'end_time': end_time.isoformat(),
                 'duration_seconds': duration
@@ -1860,6 +1942,7 @@ class FileMetadataExtractor:
 
             results = {
                 **self.stats,
+                'skipped_unchanged': skipped_unchanged,
                 'directories_updated': directories_updated,
                 'session_id': session_id,
                 'duration_seconds': duration,
