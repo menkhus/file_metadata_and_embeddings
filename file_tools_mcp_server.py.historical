@@ -1,0 +1,376 @@
+#!/usr/bin/env python3
+"""
+file_tools_mcp_server.py - MCP Server for File Metadata Tools + Knowledge Graph
+
+Exposes file metadata tools AND autograph knowledge graph tools.
+
+Tools available:
+- File Search: search_files_by_metadata, search_fulltext, search_by_topic, semantic_search
+- Knowledge Graph: log_autograph, query_autographs, autograph_suggest, semantic_search_contexts
+
+Usage:
+    # Start the MCP server
+    python file_tools_mcp_server.py
+
+    # In another terminal, run Ollama with the tools
+    ollama run gpt-oss
+"""
+
+import asyncio
+import json
+import subprocess
+import os
+from typing import Any
+from mcp.server import Server
+from mcp.types import Tool, TextContent
+import mcp.server.stdio
+
+# Import autograph manager
+from autograph_manager import AutographManager
+
+# Create MCP server
+app = Server("file-metadata-tools")
+
+# Initialize autograph manager
+KG_PATH = os.environ.get('KG_PATH', os.path.join(os.path.dirname(__file__), 'knowledge_graph'))
+try:
+    autograph_mgr = AutographManager(KG_PATH)
+except Exception as e:
+    print(f"Warning: Could not initialize autograph manager: {e}", flush=True)
+    autograph_mgr = None
+
+
+@app.list_tools()
+async def list_tools() -> list[Tool]:
+    """List available file metadata tools"""
+    return [
+        Tool(
+            name="search_files_by_metadata",
+            description="Search for files by metadata like creation date, size, name pattern, or file type",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "created_since": {"type": "string", "description": "Files created since YYYY-MM-DD"},
+                    "created_before": {"type": "string", "description": "Files created before YYYY-MM-DD"},
+                    "greater": {"type": "integer", "description": "Files greater than SIZE bytes"},
+                    "less": {"type": "integer", "description": "Files less than SIZE bytes"},
+                    "name": {"type": "string", "description": "Pattern to match in filename"},
+                    "type": {"type": "string", "description": "File type or extension"}
+                }
+            }
+        ),
+        Tool(
+            name="search_fulltext",
+            description="Full-text search through file content using FTS5. Good for finding exact words or phrases.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query string"},
+                    "limit": {"type": "integer", "description": "Maximum results (default 10)"}
+                },
+                "required": ["query"]
+            }
+        ),
+        Tool(
+            name="search_by_topic",
+            description="Find files by topic using TF-IDF keyword matching. Good for finding files about a subject.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Topic or keyword"},
+                    "top_k": {"type": "integer", "description": "Number of results (default 10)"}
+                },
+                "required": ["query"]
+            }
+        ),
+        Tool(
+            name="semantic_search",
+            description="Semantic similarity search using embeddings and FAISS. Best for conceptual queries like 'files about machine learning' or 'code that uses FAISS'.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Natural language query"},
+                    "top_k": {"type": "integer", "description": "Number of results (default 5)"}
+                },
+                "required": ["query"]
+            }
+        ),
+        # Knowledge Graph / Autograph tools
+        Tool(
+            name="log_autograph",
+            description="Log a grounding choice to the knowledge graph. Called after user accepts/rejects sources during grounding. Creates autograph entries that help future grounding suggestions.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "context_summary": {"type": "string", "description": "Summary of what user was working on"},
+                    "command": {"type": "string", "description": "Which grounding command: ground, preground, postground, cite, research"},
+                    "sources_offered": {"type": "array", "items": {"type": "string"}, "description": "Files/sources offered to user"},
+                    "sources_accepted": {"type": "array", "items": {"type": "string"}, "description": "Files/sources user accepted"},
+                    "sources_rejected": {"type": "array", "items": {"type": "string"}, "description": "Files/sources user rejected"}
+                },
+                "required": ["context_summary", "command", "sources_offered"]
+            }
+        ),
+        Tool(
+            name="query_autographs",
+            description="Query the autograph knowledge graph for patterns. Find what sources are typically useful for a given context based on prior grounding choices.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "context": {"type": "string", "description": "Context to find patterns for"},
+                    "limit": {"type": "integer", "description": "Max results (default 10)"}
+                },
+                "required": ["context"]
+            }
+        ),
+        Tool(
+            name="autograph_suggest",
+            description="Get auto-suggestions based on accumulated autographs. Returns sources that were frequently accepted in similar contexts. Use this to enable KG-assisted grounding.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "context": {"type": "string", "description": "Current context to get suggestions for"},
+                    "threshold": {"type": "number", "description": "Confidence threshold 0-1 (default 0.5)"}
+                },
+                "required": ["context"]
+            }
+        ),
+        Tool(
+            name="autograph_stats",
+            description="Get statistics about the autograph knowledge graph. Shows total nodes, edges, bootstrap phase (Cold/Learning/Warm/Hot), and embedding status.",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        )
+    ]
+
+
+@app.call_tool()
+async def call_tool(name: str, arguments: Any) -> list[TextContent]:
+    """Execute a tool and return results"""
+
+    # File search tools
+    if name == "search_files_by_metadata":
+        return await search_metadata(arguments)
+    elif name == "search_fulltext":
+        return await search_fts(arguments)
+    elif name == "search_by_topic":
+        return await search_tfidf(arguments)
+    elif name == "semantic_search":
+        return await search_semantic(arguments)
+    # Knowledge Graph / Autograph tools
+    elif name == "log_autograph":
+        return await kg_log_autograph(arguments)
+    elif name == "query_autographs":
+        return await kg_query_autographs(arguments)
+    elif name == "autograph_suggest":
+        return await kg_autograph_suggest(arguments)
+    elif name == "autograph_stats":
+        return await kg_autograph_stats(arguments)
+    else:
+        return [TextContent(type="text", text=f"Unknown tool: {name}")]
+
+
+async def search_metadata(args: dict) -> list[TextContent]:
+    """Call file_query_tool.py"""
+    cmd = ["python3", "file_query_tool.py", "--db", "file_metadata.db"]
+
+    if args.get("created_since"):
+        cmd.extend(["--created-since", args["created_since"]])
+    if args.get("created_before"):
+        cmd.extend(["--created-before", args["created_before"]])
+    if args.get("greater"):
+        cmd.extend(["--greater", str(args["greater"])])
+    if args.get("less"):
+        cmd.extend(["--less", str(args["less"])])
+    if args.get("name"):
+        cmd.extend(["--name", args["name"]])
+    if args.get("type"):
+        cmd.extend(["--type", args["type"]])
+
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+    # Count results
+    lines = result.stdout.strip().split('\n')
+    count = len([l for l in lines if l.startswith('Path:')])
+
+    output = f"Found {count} files:\n\n{result.stdout[:2000]}"
+    if len(result.stdout) > 2000:
+        output += "\n... (truncated)"
+
+    return [TextContent(type="text", text=output)]
+
+
+async def search_fts(args: dict) -> list[TextContent]:
+    """Call find_using_fts.py"""
+    query = args.get("query", "")
+    limit = args.get("limit", 10)
+
+    cmd = ["python3", "find_using_fts.py", "--query", query, "--limit", str(limit)]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+    return [TextContent(type="text", text=result.stdout[:2000])]
+
+
+async def search_tfidf(args: dict) -> list[TextContent]:
+    """Call find_by_tfidf.py"""
+    query = args.get("query", "")
+    top_k = args.get("top_k", 10)
+
+    cmd = ["python3", "find_by_tfidf.py", "--query", query, "--top_k", str(top_k)]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+    return [TextContent(type="text", text=result.stdout[:2000])]
+
+
+async def search_semantic(args: dict) -> list[TextContent]:
+    """Call find_most_similar.py"""
+    query = args.get("query", "")
+    top_k = args.get("top_k", 5)
+
+    cmd = ["python3", "find_most_similar.py", "--query", query, "--top_k", str(top_k)]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+
+    return [TextContent(type="text", text=result.stdout)]
+
+
+# ============================================================================
+# Knowledge Graph / Autograph Tools
+# ============================================================================
+
+async def kg_log_autograph(args: dict) -> list[TextContent]:
+    """Log a grounding choice to the knowledge graph"""
+    if autograph_mgr is None:
+        return [TextContent(type="text", text="Error: Autograph manager not initialized")]
+
+    try:
+        context_summary = args.get("context_summary", "")
+        command = args.get("command", "ground")
+        sources_offered = args.get("sources_offered", [])
+        sources_accepted = args.get("sources_accepted", [])
+        sources_rejected = args.get("sources_rejected", [])
+
+        result = autograph_mgr.log_autograph(
+            context_summary=context_summary,
+            command=command,
+            sources_offered=sources_offered,
+            sources_accepted=sources_accepted,
+            sources_rejected=sources_rejected
+        )
+
+        output = f"Autograph logged successfully:\n"
+        output += f"  Context node: {result['context_node']}\n"
+        output += f"  Edges created: {result['edges_created']}\n"
+        output += f"  Accepted: {result['accepted']}, Rejected: {result['rejected']}, Ignored: {result['ignored']}"
+
+        return [TextContent(type="text", text=output)]
+
+    except Exception as e:
+        return [TextContent(type="text", text=f"Error logging autograph: {str(e)}")]
+
+
+async def kg_query_autographs(args: dict) -> list[TextContent]:
+    """Query the autograph knowledge graph for patterns"""
+    if autograph_mgr is None:
+        return [TextContent(type="text", text="Error: Autograph manager not initialized")]
+
+    try:
+        context = args.get("context", "")
+        limit = args.get("limit", 10)
+
+        results = autograph_mgr.query_autographs(context, limit)
+
+        if not results:
+            return [TextContent(type="text", text=f"No autographs found for context: '{context}'")]
+
+        output = f"Found {len(results)} autograph entries for '{context}':\n\n"
+        for i, entry in enumerate(results, 1):
+            similarity = entry.get('context_similarity', 'N/A')
+            output += f"{i}. [{entry['edge_type']}] {entry['target_node']}\n"
+            output += f"   Weight: {entry['weight']}, Similarity: {similarity}\n"
+            output += f"   Context: {entry['context_summary'][:50]}...\n"
+            output += f"   Command: {entry['command']}\n\n"
+
+        return [TextContent(type="text", text=output)]
+
+    except Exception as e:
+        return [TextContent(type="text", text=f"Error querying autographs: {str(e)}")]
+
+
+async def kg_autograph_suggest(args: dict) -> list[TextContent]:
+    """Get auto-suggestions based on accumulated autographs"""
+    if autograph_mgr is None:
+        return [TextContent(type="text", text="Error: Autograph manager not initialized")]
+
+    try:
+        context = args.get("context", "")
+        threshold = args.get("threshold", 0.5)
+
+        suggestions = autograph_mgr.suggest_sources(context, threshold)
+
+        if not suggestions:
+            return [TextContent(type="text", text=f"No suggestions available for context: '{context}'\n(Need more autographs or lower threshold)")]
+
+        output = f"Suggested sources for '{context}':\n\n"
+        for i, suggestion in enumerate(suggestions, 1):
+            output += f"{i}. {suggestion['source']}\n"
+            output += f"   Confidence: {suggestion['confidence']:.1%}\n"
+            output += f"   Accept/Reject: {suggestion['accept_count']:.1f}/{suggestion['reject_count']:.1f}\n\n"
+
+        return [TextContent(type="text", text=output)]
+
+    except Exception as e:
+        return [TextContent(type="text", text=f"Error getting suggestions: {str(e)}")]
+
+
+async def kg_autograph_stats(args: dict) -> list[TextContent]:
+    """Get statistics about the autograph knowledge graph"""
+    if autograph_mgr is None:
+        return [TextContent(type="text", text="Error: Autograph manager not initialized")]
+
+    try:
+        stats = autograph_mgr.get_stats()
+
+        output = f"Autograph Knowledge Graph Statistics:\n\n"
+        output += f"Bootstrap Phase: {stats['bootstrap_phase']}\n"
+        output += f"Total Nodes: {stats['total_nodes']}\n"
+        output += f"Total Edges: {stats['total_edges']}\n"
+        output += f"Embeddings Available: {stats['embeddings_available']}\n"
+        output += f"Embeddings Count: {stats['embeddings_count']}\n\n"
+
+        if stats['node_types']:
+            output += "Node Types:\n"
+            for ntype, count in stats['node_types'].items():
+                output += f"  - {ntype}: {count}\n"
+
+        if stats['edge_types']:
+            output += "\nEdge Types:\n"
+            for etype, count in stats['edge_types'].items():
+                output += f"  - {etype}: {count}\n"
+
+        # Bootstrap phase explanation
+        output += f"\nBootstrap Phases:\n"
+        output += f"  Cold: No autographs, manual grounding only\n"
+        output += f"  Learning: <10 edges, patterns emerging\n"
+        output += f"  Warm: 10-50 edges, auto-suggestions available\n"
+        output += f"  Hot: >50 edges, high-confidence suggestions\n"
+
+        return [TextContent(type="text", text=output)]
+
+    except Exception as e:
+        return [TextContent(type="text", text=f"Error getting stats: {str(e)}")]
+
+
+async def main():
+    """Run the MCP server"""
+    async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
+        await app.run(
+            read_stream,
+            write_stream,
+            app.create_initialization_options()
+        )
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

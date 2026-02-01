@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "settings": {
+    "decay_factor": 0.95,
+    "decay_period_days": 1,
+    "auto_suggest_threshold": 0.5,
+    "auto_include_threshold": 0.8,
+    "max_suggestions": 5,
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "embedding_dim": 384
+  },
+  "edge_weights": {
+    "accepted": 1.0,
+    "rejected": -0.5,
+    "ignored": 0.0,
+    "discusses": 0.5
+  },
+  "node_types": [
+    "context",
+    "file",
+    "concept",
+    "session",
+    "web"
+  ],
+  "edge_types": [
+    "accepted",
+    "rejected",
+    "ignored",
+    "discusses"
+  ]
+}

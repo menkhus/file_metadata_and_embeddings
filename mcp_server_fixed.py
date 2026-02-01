@@ -3,7 +3,8 @@
 MCP Server for File Metadata Tool - Full Feature Version
 
 This MCP server exposes the file metadata database to LLMs via standardized tools.
-Provides comprehensive access to file metadata, content search, keywords, and topics.
+Provides comprehensive access to file metadata, content search, keywords, topics,
+and knowledge graph learning from grounding decisions.
 
 Available tools:
 - search_files: Search by metadata (name, type, date, size, directory, permissions)
@@ -14,6 +15,10 @@ Available tools:
 - search_by_keywords: Find files by TF-IDF keywords
 - get_stats: Database statistics and overview
 - semantic_search: FAISS vector similarity search (when index available)
+- log_autograph: Log grounding choices to knowledge graph
+- query_autographs: Query KG for patterns related to a context
+- autograph_suggest: Get auto-suggestions based on learned patterns
+- autograph_stats: View KG statistics and bootstrap phase
 """
 
 import asyncio
@@ -41,17 +46,29 @@ from mcp.types import (
 # Database path - can be overridden via environment variable
 DB_PATH = os.environ.get('FILE_METADATA_DB', os.path.expanduser('~/data/file_metadata.sqlite3'))
 
-# FAISS index paths - optional, for semantic search
-FAISS_INDEX_PATH = os.environ.get('FAISS_INDEX', os.path.expanduser('~/data/file_search.faiss'))
-FAISS_META_PATH = os.environ.get('FAISS_META', os.path.expanduser('~/data/file_search_meta.json'))
+# FAISS data directory - for two-tier index architecture
+FAISS_DATA_DIR = os.environ.get('FAISS_DATA_DIR', os.path.expanduser('~/data'))
+
+# Knowledge graph directory - for autograph learning
+KG_PATH = os.environ.get('KG_PATH', os.path.join(os.path.dirname(__file__), 'knowledge_graph'))
 
 # Try to load FAISS and sentence-transformers (optional)
 try:
     import faiss
     from sentence_transformers import SentenceTransformer
+    from faiss_index_manager import TwoTierFAISSManager
     FAISS_AVAILABLE = True
 except ImportError:
     FAISS_AVAILABLE = False
+    TwoTierFAISSManager = None
+
+# Try to load autograph manager for knowledge graph (optional)
+try:
+    from autograph_manager import AutographManager
+    AUTOGRAPH_AVAILABLE = True
+except ImportError:
+    AUTOGRAPH_AVAILABLE = False
+    AutographManager = None
 
 
 class FileMetadataDB:
@@ -62,87 +79,90 @@ class FileMetadataDB:
         if not os.path.exists(db_path):
             raise FileNotFoundError(f"Database not found at {db_path}")
 
-        # FAISS index (loaded lazily)
-        self.faiss_index = None
-        self.faiss_metadata = None
+        # Two-tier FAISS index manager (loaded lazily)
+        self.faiss_manager: Optional[TwoTierFAISSManager] = None
         self.sentence_model = None
+        self._faiss_load_attempted = False
 
-    def _load_faiss_index(self):
-        """Load FAISS index and metadata if available"""
+    def _load_faiss_index(self) -> bool:
+        """Load two-tier FAISS index manager if available"""
         if not FAISS_AVAILABLE:
             return False
 
-        if self.faiss_index is not None:
+        if self.faiss_manager is not None:
             return True
 
-        if os.path.exists(FAISS_INDEX_PATH) and os.path.exists(FAISS_META_PATH):
-            try:
-                self.faiss_index = faiss.read_index(FAISS_INDEX_PATH)
-                with open(FAISS_META_PATH, 'r') as f:
-                    data = json.load(f)
+        if self._faiss_load_attempted:
+            return False
 
-                # Handle both old format (list) and new format (dict with build_info)
-                if isinstance(data, dict) and 'vectors' in data:
-                    self.faiss_metadata = data['vectors']
-                    build_info = data.get('build_info', {})
+        self._faiss_load_attempted = True
 
-                    # Check staleness
-                    index_chunks = build_info.get('db_chunks_at_build', 0)
-                    if index_chunks > 0:
-                        with self.get_connection() as conn:
-                            cursor = conn.execute("SELECT COUNT(*) as count FROM text_chunks")
-                            current_chunks = cursor.fetchone()['count']
-                            if current_chunks > index_chunks:
-                                print(f"Note: FAISS index may be stale ({index_chunks:,} vectors, but DB has {current_chunks:,} chunks). "
-                                      f"Run build_faiss_index.py to update.", file=sys.stderr)
-                else:
-                    # Old format - just a list of metadata
-                    self.faiss_metadata = data
+        try:
+            self.faiss_manager = TwoTierFAISSManager(data_dir=FAISS_DATA_DIR)
 
-                self.sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
-                return True
-            except Exception as e:
-                print(f"Error loading FAISS index: {e}", file=sys.stderr)
+            # Check for legacy index and migrate if needed
+            self.faiss_manager.migrate_from_legacy()
+
+            stats = self.faiss_manager.get_stats()
+            if stats['total_vectors'] == 0:
+                print("Note: FAISS indexes are empty. Run build_faiss_index.py to build.", file=sys.stderr)
                 return False
-        return False
+
+            # Check staleness
+            with self.get_connection() as conn:
+                cursor = conn.execute("SELECT COUNT(*) as count FROM text_chunks")
+                current_chunks = cursor.fetchone()['count']
+                if current_chunks > stats['total_vectors']:
+                    print(f"Note: FAISS index may be stale ({stats['total_vectors']:,} vectors, but DB has {current_chunks:,} chunks). "
+                          f"Run build_faiss_index.py --add-only to update.", file=sys.stderr)
+
+            self.sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+            return True
+        except Exception as e:
+            print(f"Error loading FAISS index: {e}", file=sys.stderr)
+            self.faiss_manager = None
+            return False
 
     def semantic_search(self, query: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """Perform semantic similarity search using FAISS"""
+        """Perform semantic similarity search using two-tier FAISS indexes"""
         if not self._load_faiss_index():
             return []
 
         try:
             # Encode query
             query_embedding = self.sentence_model.encode([query])[0]
-            query_embedding = np.array([query_embedding]).astype('float32')
+            query_embedding = np.array(query_embedding).astype('float32')
 
-            # Search FAISS index
-            distances, indices = self.faiss_index.search(query_embedding, limit)
+            # Search both indexes via manager
+            search_results = self.faiss_manager.search(query_embedding, top_k=limit)
 
             results = []
-            for i, idx in enumerate(indices[0]):
-                if idx < 0 or idx >= len(self.faiss_metadata):
-                    continue
-
-                meta = self.faiss_metadata[idx]
+            for r in search_results:
                 results.append({
-                    'file_path': meta.get('file_path'),
-                    'file_name': meta.get('file_name'),
-                    'file_type': meta.get('file_type'),
-                    'chunk_index': meta.get('chunk_index'),
-                    'chunk_text': meta.get('chunk_text', '')[:200],  # Preview
-                    'similarity': float(1 / (1 + distances[0][i])),  # Convert distance to similarity
-                    'tfidf_keywords': meta.get('tfidf_keywords', [])[:5]
+                    'file_path': r.file_path,
+                    'file_name': r.metadata.get('file_name', ''),
+                    'file_type': r.metadata.get('file_type', ''),
+                    'chunk_index': r.chunk_index,
+                    'chunk_text': r.chunk_text[:200] if r.chunk_text else '',  # Preview
+                    'similarity': r.similarity_score,
+                    'tier': r.tier,  # 'major' or 'minor'
+                    'tfidf_keywords': r.metadata.get('tfidf_keywords', [])[:5]
                 })
 
             return results
         except Exception as e:
-            print(f"Semantic search error: {e}")
+            print(f"Semantic search error: {e}", file=sys.stderr)
             return []
 
     def is_faiss_available(self) -> bool:
         """Check if FAISS index is available"""
         return self._load_faiss_index()
+
+    def get_faiss_stats(self) -> Optional[Dict[str, Any]]:
+        """Get FAISS index statistics"""
+        if not self._load_faiss_index():
+            return None
+        return self.faiss_manager.get_stats()
 
     def get_connection(self) -> sqlite3.Connection:
         """Get database connection"""
@@ -417,6 +437,17 @@ except FileNotFoundError as e:
     print(f"Error: {e}", flush=True)
     exit(1)
 
+# Initialize autograph manager for knowledge graph
+autograph_mgr: Optional[AutographManager] = None
+if AUTOGRAPH_AVAILABLE:
+    try:
+        # Create knowledge_graph directory if it doesn't exist
+        os.makedirs(KG_PATH, exist_ok=True)
+        autograph_mgr = AutographManager(KG_PATH)
+        print(f"✓ Autograph knowledge graph ready - Path: {KG_PATH}", flush=True)
+    except Exception as e:
+        print(f"Warning: Could not initialize autograph manager: {e}", flush=True)
+
 # Create MCP server
 server = Server("file-metadata-mcp")
 
@@ -622,6 +653,101 @@ Requires FAISS index to be built. Returns similarity scores and text previews.""
                 },
                 "required": ["query"]
             }
+        ),
+        # Knowledge Graph / Autograph tools
+        Tool(
+            name="log_autograph",
+            description="""Log a grounding choice to the knowledge graph.
+
+Called after user accepts/rejects sources during grounding. Creates autograph
+entries that help future grounding suggestions. The system learns which sources
+are useful for which contexts over time.
+
+Bootstrap phases: Cold (0 edges) → Learning (<10) → Warm (10-50) → Hot (>50)""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "context_summary": {
+                        "type": "string",
+                        "description": "Summary of what user was working on"
+                    },
+                    "command": {
+                        "type": "string",
+                        "description": "Which grounding command: ground, preground, postground, cite, research"
+                    },
+                    "sources_offered": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Files/sources offered to user"
+                    },
+                    "sources_accepted": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Files/sources user accepted"
+                    },
+                    "sources_rejected": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Files/sources user rejected"
+                    }
+                },
+                "required": ["context_summary", "command", "sources_offered"]
+            }
+        ),
+        Tool(
+            name="query_autographs",
+            description="""Query the autograph knowledge graph for patterns.
+
+Find what sources are typically useful for a given context based on prior
+grounding choices. Uses semantic similarity to find related contexts.""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "context": {
+                        "type": "string",
+                        "description": "Context to find patterns for"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 10)",
+                        "default": 10
+                    }
+                },
+                "required": ["context"]
+            }
+        ),
+        Tool(
+            name="autograph_suggest",
+            description="""Get auto-suggestions based on accumulated autographs.
+
+Returns sources that were frequently accepted in similar contexts. Use this
+to enable KG-assisted grounding - the system suggests files based on learned
+patterns from past grounding decisions.""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "context": {
+                        "type": "string",
+                        "description": "Current context to get suggestions for"
+                    },
+                    "threshold": {
+                        "type": "number",
+                        "description": "Confidence threshold 0-1 (default: 0.5)"
+                    }
+                },
+                "required": ["context"]
+            }
+        ),
+        Tool(
+            name="autograph_stats",
+            description="""Get statistics about the autograph knowledge graph.
+
+Shows total nodes, edges, bootstrap phase (Cold/Learning/Warm/Hot), node types,
+edge types, and embedding status. Use to monitor KG health and learning progress.""",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
         )
     ]
 
@@ -772,7 +898,23 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResu
             response += f"Directories: {stats['total_directories']:,}\n"
             response += f"Files with Content Analysis: {stats['files_with_content_analysis']:,}\n"
             response += f"Total Text Chunks: {stats['total_chunks']:,}\n"
-            response += f"FAISS Semantic Search: {'Available' if db.is_faiss_available() else 'Not available (index not built)'}\n"
+
+            # FAISS index status
+            faiss_stats = db.get_faiss_stats()
+            if faiss_stats:
+                response += f"\nFAISS Semantic Search: Available\n"
+                response += f"  Major index: {faiss_stats['major']['vector_count']:,} vectors"
+                if faiss_stats['major']['build_timestamp']:
+                    response += f" (built: {faiss_stats['major']['build_timestamp'][:10]})"
+                response += "\n"
+                if faiss_stats['minor']['vector_count'] > 0:
+                    response += f"  Minor index: {faiss_stats['minor']['vector_count']:,} vectors (incremental)\n"
+                response += f"  Total vectors: {faiss_stats['total_vectors']:,}\n"
+                if faiss_stats['stale_vectors'] > 0:
+                    response += f"  Stale vectors: {faiss_stats['stale_vectors']:,}\n"
+            else:
+                response += f"FAISS Semantic Search: Not available (index not built)\n"
+
             response += f"\nTop File Types:\n"
             for ft in stats['top_file_types']:
                 response += f"  {ft['type']}: {ft['count']:,}\n"
@@ -809,6 +951,124 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResu
 
             return CallToolResult(content=[TextContent(type="text", text=response)])
 
+        # ====================================================================
+        # Knowledge Graph / Autograph Tools
+        # ====================================================================
+
+        elif name == "log_autograph":
+            if autograph_mgr is None:
+                return CallToolResult(
+                    content=[TextContent(type="text", text="Autograph manager not available. Check installation.")],
+                    isError=True
+                )
+
+            context_summary = arguments.get("context_summary", "")
+            command = arguments.get("command", "ground")
+            sources_offered = arguments.get("sources_offered", [])
+            sources_accepted = arguments.get("sources_accepted", [])
+            sources_rejected = arguments.get("sources_rejected", [])
+
+            result = autograph_mgr.log_autograph(
+                context_summary=context_summary,
+                command=command,
+                sources_offered=sources_offered,
+                sources_accepted=sources_accepted,
+                sources_rejected=sources_rejected
+            )
+
+            response = f"Autograph logged successfully:\n"
+            response += f"  Context node: {result['context_node']}\n"
+            response += f"  Edges created: {result['edges_created']}\n"
+            response += f"  Accepted: {result['accepted']}, Rejected: {result['rejected']}, Ignored: {result['ignored']}"
+
+            return CallToolResult(content=[TextContent(type="text", text=response)])
+
+        elif name == "query_autographs":
+            if autograph_mgr is None:
+                return CallToolResult(
+                    content=[TextContent(type="text", text="Autograph manager not available. Check installation.")],
+                    isError=True
+                )
+
+            context = arguments.get("context", "")
+            limit = arguments.get("limit", 10)
+
+            results = autograph_mgr.query_autographs(context, limit)
+
+            if not results:
+                response = f"No autographs found for context: '{context}'"
+            else:
+                response = f"Found {len(results)} autograph entries for '{context}':\n\n"
+                for i, entry in enumerate(results, 1):
+                    similarity = entry.get('context_similarity', 'N/A')
+                    if isinstance(similarity, float):
+                        similarity = f"{similarity:.2%}"
+                    response += f"{i}. [{entry['edge_type']}] {entry['target_node']}\n"
+                    response += f"   Weight: {entry['weight']}, Similarity: {similarity}\n"
+                    ctx_preview = entry['context_summary'][:50]
+                    response += f"   Context: {ctx_preview}...\n"
+                    response += f"   Command: {entry['command']}\n\n"
+
+            return CallToolResult(content=[TextContent(type="text", text=response)])
+
+        elif name == "autograph_suggest":
+            if autograph_mgr is None:
+                return CallToolResult(
+                    content=[TextContent(type="text", text="Autograph manager not available. Check installation.")],
+                    isError=True
+                )
+
+            context = arguments.get("context", "")
+            threshold = arguments.get("threshold", 0.5)
+
+            suggestions = autograph_mgr.suggest_sources(context, threshold)
+
+            if not suggestions:
+                response = f"No suggestions available for context: '{context}'\n"
+                response += "(Need more autographs or try lowering threshold)"
+            else:
+                response = f"Suggested sources for '{context}':\n\n"
+                for i, suggestion in enumerate(suggestions, 1):
+                    response += f"{i}. {suggestion['source']}\n"
+                    response += f"   Confidence: {suggestion['confidence']:.1%}\n"
+                    response += f"   Accept/Reject: {suggestion['accept_count']:.1f}/{suggestion['reject_count']:.1f}\n\n"
+
+            return CallToolResult(content=[TextContent(type="text", text=response)])
+
+        elif name == "autograph_stats":
+            if autograph_mgr is None:
+                return CallToolResult(
+                    content=[TextContent(type="text", text="Autograph manager not available. Check installation.")],
+                    isError=True
+                )
+
+            stats = autograph_mgr.get_stats()
+
+            response = "Autograph Knowledge Graph Statistics:\n\n"
+            response += f"Bootstrap Phase: {stats['bootstrap_phase']}\n"
+            response += f"Total Nodes: {stats['total_nodes']}\n"
+            response += f"Total Edges: {stats['total_edges']}\n"
+            response += f"Embeddings Available: {stats['embeddings_available']}\n"
+            response += f"Embeddings Count: {stats['embeddings_count']}\n"
+
+            if stats['node_types']:
+                response += "\nNode Types:\n"
+                for ntype, count in stats['node_types'].items():
+                    response += f"  • {ntype}: {count}\n"
+
+            if stats['edge_types']:
+                response += "\nEdge Types:\n"
+                for etype, count in stats['edge_types'].items():
+                    response += f"  • {etype}: {count}\n"
+
+            response += "\nBootstrap Phases:\n"
+            response += "  Cold: No autographs, manual grounding only\n"
+            response += "  Learning: <10 edges, patterns emerging\n"
+            response += "  Warm: 10-50 edges, auto-suggestions available\n"
+            response += "  Hot: >50 edges, high-confidence suggestions\n"
+
+            return CallToolResult(content=[TextContent(type="text", text=response)])
+
         else:
             return CallToolResult(
                 content=[TextContent(type="text", text=f"Unknown tool: {name}")],
@@ -830,7 +1090,7 @@ async def main():
             write_stream,
             InitializationOptions(
                 server_name="file-metadata-mcp",
-                server_version="2.0.0",
+                server_version="2.1.0",  # Added autograph/KG tools
                 capabilities=server.get_capabilities(
                     notification_options=NotificationOptions(),
                     experimental_capabilities={}

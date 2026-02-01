@@ -1,0 +1,4 @@
+node_id,node_type,label,embedding_id,created,last_seen,metadata
+context:3aec8443,context,Testing MCP server integration,emb:context:3aec8443,2026-02-01T23:54:14.058043Z,2026-02-01T23:54:14.058043Z,{}
+file:mcp_server_fixed.py,file,mcp_server_fixed.py,,2026-02-01T23:54:14.058187Z,2026-02-01T23:54:14.058187Z,{}
+file:autograph_manager.py,file,autograph_manager.py,,2026-02-01T23:54:14.058314Z,2026-02-01T23:54:14.058314Z,{}
