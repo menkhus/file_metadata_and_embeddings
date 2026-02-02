@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+"""
+file_agent_simple.py - Simple Agentic File Query Tool
+
+Demonstrates conversational AI agent using:
+- Ollama (gpt-oss 20B) for query understanding
+- 4 file metadata tools
+- Single-shot and interactive modes
+
+Usage:
+    python file_agent_simple.py "Find FAISS-related files"
+"""
+
+import argparse
+import subprocess
+import sys
+import requests
+import json
+import re
+
+
+class SimpleFileAgent:
+    def __init__(self, ollama_url="http://localhost:11434", model="gpt-oss:20b"):
+        self.ollama_url = ollama_url
+        self.model = model
+
+    def analyze_query(self, user_query: str) -> dict:
+        """Use LLM to understand the query intent"""
+
+        prompt = f"""Analyze this file search query and determine the best search method.
+
+Query: "{user_query}"
+
+Choose ONE of these methods:
+1. metadata - for queries about file dates, sizes, names, types
+2. fulltext - for exact text/word matching in content
+3. semantic - for conceptual/meaning-based search (uses FAISS embeddings)
+4. topic - for topic/keyword matching (TF-IDF)
+
+Also extract search parameters.
+
+Respond ONLY with valid JSON:
+{{
+    "method": "semantic|fulltext|metadata|topic",
+    "search_term": "what to search for",
+    "reasoning": "why this method"
+}}"""
+
+        response = requests.post(
+            f"{self.ollama_url}/api/generate",
+            json={
+                "model": self.model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": 0.3}
+            },
+            timeout=60
+        )
+
+        if response.status_code == 200:
+            text = response.json()["response"]
+            # Extract JSON from response
+            match = re.search(r'\{[^}]+\}', text, re.DOTALL)
+            if match:
+                return json.loads(match.group())
+            return {"method": "semantic", "search_term": user_query, "reasoning": "default"}
+        else:
+            return {"method": "semantic", "search_term": user_query, "reasoning": "error"}
+
+    def execute_search(self, method: str, search_term: str) -> dict:
+        """Execute the appropriate search tool"""
+
+        if method == "semantic":
+            cmd = ["python3", "find_most_similar.py", "--query", search_term, "--top_k", "3"]
+        elif method == "fulltext":
+            cmd = ["python3", "find_using_fts.py", "--query", search_term, "--limit", "3"]
+        elif method == "topic":
+            cmd = ["python3", "find_by_tfidf.py", "--query", search_term, "--top_k", "3"]
+        else:  # metadata
+            cmd = ["python3", "file_query_tool.py", "--name", search_term]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        return {"output": result.stdout, "method": method, "query": search_term}
+
+    def summarize_results(self, search_results: dict, original_query: str) -> str:
+        """Use LLM to summarize search results"""
+
+        prompt = f"""User asked: "{original_query}"
+
+Search method used: {search_results['method']}
+Search query: {search_results['query']}
+
+Results:
+{search_results['output'][:2000]}
+
+Provide a concise 2-3 sentence summary of what was found."""
+
+        response = requests.post(
+            f"{self.ollama_url}/api/generate",
+            json={
+                "model": self.model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": 0.5, "num_predict": 150}
+            },
+            timeout=60
+        )
+
+        if response.status_code == 200:
+            return response.json()["response"].strip()
+        return "Results retrieved successfully."
+
+    def query(self, user_query: str) -> str:
+        """Main query processing pipeline"""
+
+        print(f"\n🔍 User Query: {user_query}")
+        print("=" * 70)
+
+        # Step 1: Analyze query with LLM
+        print("\n💭 Step 1: Analyzing query intent...")
+        analysis = self.analyze_query(user_query)
+        print(f"   Method: {analysis['method']}")
+        print(f"   Search term: {analysis['search_term']}")
+        print(f"   Reasoning: {analysis['reasoning']}")
+
+        # Step 2: Execute search tool
+        print(f"\n🔧 Step 2: Executing {analysis['method']} search...")
+        results = self.execute_search(analysis['method'], analysis['search_term'])
+
+        # Step 3: Summarize with LLM
+        print("\n📝 Step 3: Generating summary...")
+        summary = self.summarize_results(results, user_query)
+
+        # Final output
+        output = f"""
+{'=' * 70}
+✨ AGENT RESPONSE
+{'=' * 70}
+
+{summary}
+
+{'=' * 70}
+📊 DETAILED RESULTS
+{'=' * 70}
+
+{results['output']}
+"""
+        return output
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Simple File Agent with Ollama")
+    parser.add_argument('query', nargs='?', help='Search query')
+    parser.add_argument('--model', default='gpt-oss:20b', help='Ollama model')
+    parser.add_argument('--url', default='http://localhost:11434', help='Ollama URL')
+
+    args = parser.parse_args()
+
+    if not args.query:
+        parser.print_help()
+        sys.exit(0)
+
+    # Check Ollama
+    try:
+        requests.get(f"{args.url}/api/tags", timeout=5)
+    except:
+        print(f"❌ Error: Ollama not running at {args.url}")
+        sys.exit(1)
+
+    agent = SimpleFileAgent(ollama_url=args.url, model=args.model)
+    response = agent.query(args.query)
+    print(response)
+
+
+if __name__ == "__main__":
+    main()

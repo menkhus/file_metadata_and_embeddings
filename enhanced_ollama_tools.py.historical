@@ -1,0 +1,334 @@
+#!/usr/bin/env python3
+"""
+Enhanced Ollama Tools with JSON Metadata
+
+Returns structured JSON with:
+- Search results
+- Metadata (chunk info, embeddings stats, etc.)
+- Source attribution
+- Confidence scores
+
+This creates a complete AI scenario with rich data flow.
+"""
+
+import json
+import requests
+import subprocess
+import sys
+from datetime import datetime
+
+
+# Tool definitions with enhanced descriptions
+TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "semantic_search",
+            "description": "Semantic similarity search using FAISS embeddings (8199 vectors). Returns JSON with file paths, chunks, similarity scores, and metadata.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Natural language search query"
+                    },
+                    "top_k": {
+                        "type": "integer",
+                        "description": "Number of results (default 5)",
+                        "default": 5
+                    },
+                    "include_content": {
+                        "type": "boolean",
+                        "description": "Include chunk content in results (default false)",
+                        "default": False
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "fulltext_search",
+            "description": "Full-text search using FTS5. Returns JSON with matches, snippets, and file metadata.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Text to search for"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default 5)",
+                        "default": 5
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    }
+]
+
+
+def execute_semantic_search(query: str, top_k: int = 5, include_content: bool = False) -> dict:
+    """Execute semantic search and return JSON with metadata"""
+
+    # Run the tool
+    cmd = ["python3", "find_most_similar.py", "--query", query, "--top_k", str(top_k)]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+
+    # Parse the text output
+    results = []
+    for line in result.stdout.split('\n'):
+        if line.startswith('Rank '):
+            # Parse: "Rank 1: file=/path/to/file, chunk=3, distance=1.5619"
+            parts = line.split(': file=')
+            if len(parts) >= 2:
+                rank = int(parts[0].replace('Rank ', ''))
+                file_info = parts[1]
+
+                file_path = file_info.split(', chunk=')[0]
+                chunk_part = file_info.split(', chunk=')[1] if ', chunk=' in file_info else ''
+                chunk_index = int(chunk_part.split(',')[0]) if chunk_part else 0
+                distance = float(file_info.split('distance=')[1]) if 'distance=' in file_info else 0.0
+
+                # Calculate similarity score (0-1, higher is better)
+                similarity = 1.0 / (1.0 + distance)
+
+                result_item = {
+                    "rank": rank,
+                    "file_path": file_path,
+                    "chunk_index": chunk_index,
+                    "distance": round(distance, 4),
+                    "similarity_score": round(similarity, 4),
+                    "file_name": file_path.split('/')[-1]
+                }
+
+                # Optionally get chunk content
+                if include_content:
+                    # Could query chunks_with_metadata view here
+                    result_item["content_preview"] = f"Chunk {chunk_index} from {result_item['file_name']}"
+
+                results.append(result_item)
+
+    # Build structured response
+    response = {
+        "tool": "semantic_search",
+        "query": query,
+        "timestamp": datetime.utcnow().isoformat() + 'Z',
+        "metadata": {
+            "search_method": "FAISS L2 distance",
+            "embeddings_count": 8199,
+            "model": "sentence-transformers/all-MiniLM-L6-v2",
+            "results_count": len(results),
+            "top_k_requested": top_k
+        },
+        "results": results,
+        "success": True
+    }
+
+    return response
+
+
+def execute_fulltext_search(query: str, limit: int = 5) -> dict:
+    """Execute FTS search and return JSON with metadata"""
+
+    cmd = ["python3", "find_using_fts.py", "--query", query, "--limit", str(limit)]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+    # Parse results
+    matches = []
+    current_file = None
+    current_snippet = None
+
+    for line in result.stdout.split('\n'):
+        if '. /' in line and 'FTS matches' not in line:
+            if current_file and current_snippet:
+                matches.append({
+                    "file_path": current_file,
+                    "file_name": current_file.split('/')[-1],
+                    "snippet": current_snippet
+                })
+
+            # New file
+            parts = line.split('. /')
+            if len(parts) >= 2:
+                current_file = '/' + parts[1].strip()
+                current_snippet = None
+
+        elif '...' in line and current_file:
+            current_snippet = line.strip()
+
+    # Add last one
+    if current_file and current_snippet:
+        matches.append({
+            "file_path": current_file,
+            "file_name": current_file.split('/')[-1],
+            "snippet": current_snippet
+        })
+
+    response = {
+        "tool": "fulltext_search",
+        "query": query,
+        "timestamp": datetime.utcnow().isoformat() + 'Z',
+        "metadata": {
+            "search_method": "SQLite FTS5",
+            "results_count": len(matches),
+            "limit_requested": limit
+        },
+        "results": matches,
+        "success": True
+    }
+
+    return response
+
+
+def execute_tool(tool_name: str, arguments: dict) -> str:
+    """Execute tool and return JSON response"""
+
+    print(f"\n🔧 EXECUTING: {tool_name}")
+    print(f"📋 Arguments: {json.dumps(arguments, indent=2)}")
+
+    if tool_name == "semantic_search":
+        response = execute_semantic_search(
+            query=arguments.get("query", ""),
+            top_k=arguments.get("top_k", 5),
+            include_content=arguments.get("include_content", False)
+        )
+
+    elif tool_name == "fulltext_search":
+        response = execute_fulltext_search(
+            query=arguments.get("query", ""),
+            limit=arguments.get("limit", 5)
+        )
+
+    else:
+        response = {
+            "tool": tool_name,
+            "error": f"Unknown tool: {tool_name}",
+            "success": False
+        }
+
+    # Return as JSON string
+    json_str = json.dumps(response, indent=2)
+
+    print(f"✅ Returned {len(response.get('results', []))} results in JSON format")
+
+    return json_str
+
+
+def chat_with_tools(user_message: str, model: str = "gpt-oss:20b"):
+    """Chat with Ollama using enhanced tool calling"""
+
+    print(f"\n{'='*70}")
+    print(f"👤 USER: {user_message}")
+    print(f"{'='*70}")
+
+    messages = [{"role": "user", "content": user_message}]
+
+    # Call Ollama
+    print(f"\n🤖 Calling Ollama {model} with {len(TOOLS)} enhanced tools...")
+
+    response = requests.post(
+        "http://localhost:11434/api/chat",
+        json={
+            "model": model,
+            "messages": messages,
+            "tools": TOOLS,
+            "stream": False
+        },
+        timeout=120
+    )
+
+    if response.status_code != 200:
+        print(f"❌ Error: {response.status_code}")
+        return
+
+    data = response.json()
+    message = data.get("message", {})
+    tool_calls = message.get("tool_calls", [])
+
+    if tool_calls:
+        print(f"\n📞 Model called {len(tool_calls)} tool(s)")
+
+        for tool_call in tool_calls:
+            function = tool_call.get("function", {})
+            tool_name = function.get("name")
+            arguments = function.get("arguments", {})
+
+            # Execute and get JSON response
+            tool_result_json = execute_tool(tool_name, arguments)
+
+            # Parse to show summary
+            tool_result_dict = json.loads(tool_result_json)
+
+            print(f"\n📊 Tool Response Summary:")
+            print(f"   Tool: {tool_result_dict.get('tool')}")
+            print(f"   Results: {tool_result_dict.get('metadata', {}).get('results_count', 0)}")
+            print(f"   Method: {tool_result_dict.get('metadata', {}).get('search_method', 'N/A')}")
+
+            if tool_result_dict.get('results'):
+                print(f"\n   Top 3 Results:")
+                for i, r in enumerate(tool_result_dict['results'][:3], 1):
+                    if 'file_name' in r:
+                        score = r.get('similarity_score', 'N/A')
+                        print(f"     {i}. {r['file_name']} (score: {score})")
+
+            # Add to conversation
+            messages.append(message)
+            messages.append({
+                "role": "tool",
+                "content": tool_result_json  # Send full JSON to LLM
+            })
+
+        # Get final response
+        print(f"\n🤖 Calling Ollama with JSON results...")
+
+        response2 = requests.post(
+            "http://localhost:11434/api/chat",
+            json={
+                "model": model,
+                "messages": messages,
+                "stream": False
+            },
+            timeout=120
+        )
+
+        if response2.status_code == 200:
+            final_message = response2.json().get("message", {})
+            final_content = final_message.get("content", "")
+
+            print(f"\n{'='*70}")
+            print(f"🤖 OLLAMA RESPONSE:")
+            print(f"{'='*70}")
+            print(final_content if final_content else "(empty response)")
+            print(f"{'='*70}\n")
+    else:
+        content = message.get("content", "")
+        print(f"\n🤖 Response (no tools):\n{content}")
+
+
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Enhanced Ollama tools with JSON metadata")
+    parser.add_argument("query", help="Question to ask")
+    parser.add_argument("--model", default="gpt-oss:20b", help="Model to use")
+
+    args = parser.parse_args()
+
+    # Check Ollama
+    try:
+        requests.get("http://localhost:11434/api/tags", timeout=5)
+        print("✅ Ollama is running")
+    except:
+        print("❌ Ollama not running")
+        return
+
+    chat_with_tools(args.query, args.model)
+
+
+if __name__ == "__main__":
+    main()
