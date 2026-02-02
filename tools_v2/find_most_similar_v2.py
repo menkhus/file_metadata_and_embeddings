@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """
-find_most_similar_v2.py - JSONB-aware Semantic Search Tool
+find_most_similar_v2.py - Two-Tier Semantic Search Tool
 
-Semantic search using embeddings with JSONB chunk envelopes.
+Semantic search using two-tier FAISS index architecture.
+Searches both major (stable) and minor (incremental) indexes.
 Returns results in LLM-consumable JSON format.
 
 Usage:
     python find_most_similar_v2.py --query "error handling in python" --top_k 5 --json
     python find_most_similar_v2.py --query "authentication" --context 1 --json
+    python find_most_similar_v2.py --query "database" --status  # Show index status
 
 Features:
-    - Semantic search using sentence-transformers embeddings
-    - Returns complete chunk envelopes with metadata
+    - Two-tier FAISS search (major + minor indexes)
+    - Staleness filtering for modified/deleted files
     - Optional adjacent chunk context retrieval
     - LLM-optimized JSON output format
 """
@@ -20,12 +22,12 @@ import argparse
 import sqlite3
 import json
 import sys
+import os
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
 try:
     import numpy as np
-    import faiss
     from sentence_transformers import SentenceTransformer
     DEPS_AVAILABLE = True
 except ImportError:
@@ -33,71 +35,39 @@ except ImportError:
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from chunking_refactor import ChunkEnvelope
+
+try:
+    from faiss_index_manager import TwoTierFAISSManager, SearchResult
+    MANAGER_AVAILABLE = True
+except ImportError:
+    MANAGER_AVAILABLE = False
+
+
+# Default paths
+DEFAULT_DATA_DIR = os.path.expanduser("~/data")
+DEFAULT_DB = os.path.expanduser("~/data/file_metadata.sqlite3")
+DEFAULT_MODEL = "all-MiniLM-L6-v2"
 
 
 class SemanticSearchV2:
-    """Semantic search with JSONB chunk support"""
+    """Semantic search with two-tier FAISS index support"""
 
-    def __init__(self, db_path: str = "file_metadata.db", model_name: str = 'all-MiniLM-L6-v2'):
+    def __init__(
+        self,
+        data_dir: str = DEFAULT_DATA_DIR,
+        db_path: str = DEFAULT_DB,
+        model_name: str = DEFAULT_MODEL
+    ):
         if not DEPS_AVAILABLE:
             raise ImportError("Required packages not installed. Run: pip install faiss-cpu numpy sentence-transformers")
+        if not MANAGER_AVAILABLE:
+            raise ImportError("faiss_index_manager not found. Ensure it's in the parent directory.")
 
+        self.data_dir = data_dir
         self.db_path = db_path
         self.model_name = model_name
         self.model = None
-        self.index = None
-        self.metadata_cache = []
-
-    def load_embeddings(self) -> bool:
-        """Load embeddings from database and build FAISS index"""
-        uri = f'file:{self.db_path}?mode=ro'
-        conn = sqlite3.connect(uri, uri=True)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        # Load from text_chunks_v2 table (embeddings stored as BLOB)
-        cursor.execute('''
-            SELECT
-                id,
-                file_path,
-                chunk_index,
-                chunk_envelope,
-                embedding
-            FROM text_chunks_v2
-            WHERE embedding IS NOT NULL
-            ORDER BY file_path, chunk_index
-        ''')
-
-        vectors = []
-        self.metadata_cache = []
-
-        for row in cursor.fetchall():
-            # Deserialize embedding from BLOB
-            embedding_blob = row['embedding']
-            if embedding_blob:
-                vector = np.frombuffer(embedding_blob, dtype='float32')
-                vectors.append(vector)
-
-                self.metadata_cache.append({
-                    'id': row['id'],
-                    'file_path': row['file_path'],
-                    'chunk_index': row['chunk_index'],
-                    'chunk_envelope': row['chunk_envelope']
-                })
-
-        conn.close()
-
-        if not vectors:
-            return False
-
-        # Build FAISS index
-        vectors_array = np.vstack(vectors).astype('float32')
-        dim = vectors_array.shape[1]
-        self.index = faiss.IndexFlatL2(dim)
-        self.index.add(vectors_array)
-
-        return True
+        self.manager = TwoTierFAISSManager(data_dir=data_dir)
 
     def search(
         self,
@@ -106,7 +76,7 @@ class SemanticSearchV2:
         include_context: int = 0
     ) -> List[Dict[str, Any]]:
         """
-        Semantic search for similar chunks
+        Semantic search across both major and minor indexes
 
         Args:
             query: Search query string
@@ -114,53 +84,57 @@ class SemanticSearchV2:
             include_context: Number of adjacent chunks to include
 
         Returns:
-            List of result dicts with chunk envelopes and similarity scores
+            List of result dicts with metadata and similarity scores
         """
         if self.model is None:
             print(f"Loading model: {self.model_name} ...", file=sys.stderr)
             self.model = SentenceTransformer(self.model_name)
 
-        if self.index is None:
-            print("Loading embeddings from database ...", file=sys.stderr)
-            if not self.load_embeddings():
-                raise ValueError("No embeddings found in database. Run embedding generation first.")
-
         # Encode query
-        query_vec = self.model.encode([query]).astype('float32')
+        query_embedding = self.model.encode([query])[0]
+        query_vec = np.array(query_embedding).astype('float32')
 
-        # Search FAISS index
-        distances, indices = self.index.search(query_vec, top_k)
+        # Search both indexes
+        search_results = self.manager.search(query_vec, top_k=top_k)
 
+        if not search_results:
+            return []
+
+        # Convert SearchResult objects to dicts and add context if requested
         results = []
-        uri = f'file:{self.db_path}?mode=ro'
-        conn = sqlite3.connect(uri, uri=True)
-        conn.row_factory = sqlite3.Row
+        conn = None
+        if include_context > 0 and os.path.exists(self.db_path):
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
 
-        for rank, (idx, distance) in enumerate(zip(indices[0], distances[0]), 1):
-            meta = self.metadata_cache[idx]
-
-            # Parse chunk envelope
-            envelope = ChunkEnvelope.from_json(meta['chunk_envelope'])
-
+        for rank, sr in enumerate(search_results, 1):
             result = {
                 'rank': rank,
-                'similarity_distance': float(distance),
-                'similarity_score': float(1 / (1 + distance)),  # Convert distance to similarity
-                'chunk_envelope': json.loads(meta['chunk_envelope']),
+                'similarity_score': sr.similarity_score,
+                'tier': sr.tier,
+                'file_path': sr.file_path,
+                'chunk_index': sr.chunk_index,
+                'chunk_text': sr.chunk_text,
+                'metadata': {
+                    'file_name': sr.metadata.get('file_name', ''),
+                    'file_type': sr.metadata.get('file_type', ''),
+                    'file_size': sr.metadata.get('file_size', 0),
+                    'modified_date': sr.metadata.get('modified_date', ''),
+                    'total_chunks': sr.metadata.get('total_chunks', 1),
+                    'tfidf_keywords': sr.metadata.get('tfidf_keywords', []),
+                },
                 'search_metadata': {
-                    'file_path': meta['file_path'],
-                    'chunk_index': meta['chunk_index'],
                     'query': query,
-                    'search_method': 'semantic_embedding'
+                    'search_method': 'two_tier_faiss',
                 }
             }
 
             # Add context chunks if requested
-            if include_context > 0:
+            if include_context > 0 and conn:
                 context_chunks = self._get_adjacent_chunks(
                     conn,
-                    meta['file_path'],
-                    meta['chunk_index'],
+                    sr.file_path,
+                    sr.chunk_index,
                     before=include_context,
                     after=include_context
                 )
@@ -168,7 +142,9 @@ class SemanticSearchV2:
 
             results.append(result)
 
-        conn.close()
+        if conn:
+            conn.close()
+
         return results
 
     def _get_adjacent_chunks(
@@ -186,8 +162,8 @@ class SemanticSearchV2:
         end_idx = chunk_index + after
 
         cursor.execute('''
-            SELECT chunk_envelope, chunk_index
-            FROM text_chunks_v2
+            SELECT chunk_index, chunk_text
+            FROM text_chunks
             WHERE file_path = ?
               AND chunk_index BETWEEN ? AND ?
               AND chunk_index != ?
@@ -198,79 +174,136 @@ class SemanticSearchV2:
         for row in cursor.fetchall():
             context.append({
                 'chunk_index': row['chunk_index'],
-                'chunk_envelope': json.loads(row['chunk_envelope'])
+                'chunk_text': row['chunk_text']
             })
 
         return context
 
+    def get_stats(self) -> Dict[str, Any]:
+        """Get index statistics"""
+        return self.manager.get_stats()
+
     def format_for_llm(self, results: List[Dict[str, Any]], query: str) -> Dict[str, Any]:
         """Format results for LLM consumption"""
+        stats = self.get_stats()
+
         if not results:
             return {
                 'status': 'no_results',
                 'query_metadata': {
                     'query': query,
                     'total_results': 0,
-                    'message': 'No matching chunks found (embeddings may not be generated yet)'
+                    'message': 'No matching chunks found'
+                },
+                'index_info': {
+                    'major_vectors': stats['major']['vector_count'],
+                    'minor_vectors': stats['minor']['vector_count'],
+                    'total_vectors': stats['total_vectors'],
                 },
                 'results': []
             }
+
+        # Count results by tier
+        major_count = sum(1 for r in results if r['tier'] == 'major')
+        minor_count = sum(1 for r in results if r['tier'] == 'minor')
 
         return {
             'status': 'success',
             'query_metadata': {
                 'query': query,
                 'total_results': len(results),
-                'search_type': 'semantic_similarity',
+                'search_type': 'two_tier_semantic',
                 'model': self.model_name,
-                'database': self.db_path,
-                'index_size': len(self.metadata_cache)
+            },
+            'index_info': {
+                'major_vectors': stats['major']['vector_count'],
+                'minor_vectors': stats['minor']['vector_count'],
+                'total_vectors': stats['total_vectors'],
+                'stale_vectors': stats['stale_vectors'],
+                'results_from_major': major_count,
+                'results_from_minor': minor_count,
             },
             'results': results,
             'usage_hints': {
-                'accessing_content': 'results[i].chunk_envelope.content',
-                'accessing_metadata': 'results[i].chunk_envelope.metadata',
+                'accessing_content': 'results[i].chunk_text',
+                'accessing_metadata': 'results[i].metadata',
                 'similarity_score': 'results[i].similarity_score (0-1, higher is better)',
-                'similarity_distance': 'results[i].similarity_distance (L2 distance, lower is better)',
+                'tier': 'results[i].tier (major=stable, minor=recent)',
                 'context_chunks': 'results[i].context_chunks (if requested)',
                 'note': 'Results are ordered by similarity (best match first)'
             },
             'summary': {
-                'files_matched': len(set(r['search_metadata']['file_path'] for r in results)),
+                'files_matched': len(set(r['file_path'] for r in results)),
                 'avg_similarity_score': sum(r['similarity_score'] for r in results) / len(results),
-                'top_match_file': results[0]['search_metadata']['file_path'],
+                'top_match_file': results[0]['file_path'],
                 'top_match_score': results[0]['similarity_score'],
                 'has_context': any('context_chunks' in r for r in results)
             }
         }
 
 
+def print_status(searcher: SemanticSearchV2) -> None:
+    """Print index status"""
+    stats = searcher.get_stats()
+
+    print("\n=== FAISS Index Status ===\n")
+
+    print("Major Index:")
+    if stats['major']['exists']:
+        print(f"  Vectors: {stats['major']['vector_count']:,}")
+        print(f"  File size: {stats['major']['file_size_mb']:.1f} MB")
+        print(f"  Built: {stats['major']['build_timestamp'] or 'unknown'}")
+    else:
+        print("  Not built yet")
+
+    print("\nMinor Index:")
+    if stats['minor']['exists']:
+        print(f"  Vectors: {stats['minor']['vector_count']:,}")
+        print(f"  File size: {stats['minor']['file_size_mb']:.1f} MB")
+        print(f"  Built: {stats['minor']['build_timestamp'] or 'unknown'}")
+    else:
+        print("  Empty (no incremental additions)")
+
+    print(f"\nTotal vectors: {stats['total_vectors']:,}")
+    print(f"Indexed files: {stats['indexed_files']:,}")
+    print(f"Stale vectors: {stats['stale_vectors']:,}")
+
+    if stats['needs_compaction']:
+        print(f"\n[Hint] Compaction recommended. Run:")
+        print("  python build_faiss_index.py --compact")
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Semantic search with JSONB chunks (LLM-optimized output)",
+        description="Semantic search with two-tier FAISS indexes (LLM-optimized output)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Basic semantic search
   python find_most_similar_v2.py --query "error handling" --json
 
-  # Search with context (±1 chunks)
+  # Search with context (+-1 chunks)
   python find_most_similar_v2.py --query "authentication logic" --context 1 --json
 
   # Top 10 results
   python find_most_similar_v2.py --query "database connection" --top_k 10 --json
 
+  # Show index status
+  python find_most_similar_v2.py --status
+
 Requirements:
   pip install faiss-cpu numpy sentence-transformers
         """
     )
-    parser.add_argument('--db', default='file_metadata.db', help='Path to SQLite database')
-    parser.add_argument('--query', required=True, help='Semantic search query')
+    parser.add_argument('--data-dir', default=DEFAULT_DATA_DIR, help='FAISS data directory')
+    parser.add_argument('--db', default=DEFAULT_DB, help='Path to SQLite database (for context retrieval)')
+    parser.add_argument('--query', help='Semantic search query')
     parser.add_argument('--top_k', type=int, default=5, help='Number of top results')
     parser.add_argument('--context', type=int, default=0, help='Number of adjacent chunks to include')
-    parser.add_argument('--model', default='all-MiniLM-L6-v2', help='Sentence transformer model')
+    parser.add_argument('--model', default=DEFAULT_MODEL, help='Sentence transformer model')
     parser.add_argument('--json', action='store_true', help='Output as JSON (default: human-readable)')
     parser.add_argument('--pretty', action='store_true', help='Pretty-print JSON output')
+    parser.add_argument('--status', action='store_true', help='Show index status')
 
     args = parser.parse_args()
 
@@ -283,7 +316,33 @@ Requirements:
         }, indent=2), file=sys.stderr)
         sys.exit(1)
 
-    searcher = SemanticSearchV2(args.db, args.model)
+    if not MANAGER_AVAILABLE:
+        print(json.dumps({
+            'status': 'error',
+            'error': 'missing_manager',
+            'message': 'faiss_index_manager.py not found',
+            'hint': 'Ensure faiss_index_manager.py is in the parent directory'
+        }, indent=2), file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        searcher = SemanticSearchV2(args.data_dir, args.db, args.model)
+    except Exception as e:
+        print(json.dumps({
+            'status': 'error',
+            'error': str(e),
+            'type': type(e).__name__
+        }, indent=2), file=sys.stderr)
+        sys.exit(1)
+
+    # Status mode
+    if args.status:
+        print_status(searcher)
+        sys.exit(0)
+
+    # Search mode requires query
+    if not args.query:
+        parser.error("--query is required for search (or use --status)")
 
     try:
         results = searcher.search(
@@ -299,28 +358,31 @@ Requirements:
             print(json.dumps(output, indent=indent, ensure_ascii=False))
         else:
             # Human-readable output
+            stats = searcher.get_stats()
+
             if not results:
-                print("No results found.")
+                print(f"No results found for: '{args.query}'")
+                print(f"\nIndex has {stats['total_vectors']} total vectors")
                 return
 
             print(f"Semantic search for: '{args.query}'")
             print(f"Model: {args.model}")
-            print(f"Index size: {len(searcher.metadata_cache)} chunks\n")
+            print(f"Index: {stats['major']['vector_count']} major + {stats['minor']['vector_count']} minor vectors\n")
 
             for result in results:
-                envelope = result['chunk_envelope']
-                metadata = envelope['metadata']
+                print(f"{'='*60}")
+                print(f"Rank {result['rank']} (similarity: {result['similarity_score']:.4f}, tier: {result['tier']})")
+                print(f"{'='*60}")
+                print(f"File: {result['file_path']}")
+                print(f"Chunk: {result['chunk_index']}/{result['metadata']['total_chunks'] - 1}")
+                print(f"Type: {result['metadata']['file_type']}")
 
-                print(f"{'='*60}")
-                print(f"Rank {result['rank']} (similarity: {result['similarity_score']:.4f})")
-                print(f"{'='*60}")
-                print(f"File: {result['search_metadata']['file_path']}")
-                print(f"Chunk: {metadata['chunk_index']}/{metadata['total_chunks'] - 1}")
-                print(f"Strategy: {metadata['chunk_strategy']}")
-                print(f"Size: {metadata['chunk_size']} chars")
+                if result['metadata'].get('tfidf_keywords'):
+                    print(f"Keywords: {', '.join(result['metadata']['tfidf_keywords'][:5])}")
+
                 print(f"\nContent preview:")
-                content = envelope['content']
-                preview = content[:200] + "..." if len(content) > 200 else content
+                content = result['chunk_text']
+                preview = content[:300] + "..." if len(content) > 300 else content
                 print(f"  {preview}")
 
                 if 'context_chunks' in result and result['context_chunks']:
@@ -332,7 +394,7 @@ Requirements:
         print(json.dumps({
             'status': 'error',
             'error': str(e),
-            'hint': 'Generate embeddings first or check if text_chunks_v2 table exists'
+            'hint': 'Build index first: python build_faiss_index.py'
         }, indent=2), file=sys.stderr)
         sys.exit(1)
     except Exception as e:
