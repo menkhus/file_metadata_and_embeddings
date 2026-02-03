@@ -151,6 +151,15 @@ Every chunk is a self-contained JSON document:
 - Files >100MB are skipped or partially processed
 - Status codes track processing success/failure for each file
 
+## Development Notes
+
+- Python 3.10+ required (uses modern typing features)
+- NLTK data downloads automatically at runtime if missing
+- Hidden/system files are skipped by default
+- Log output goes to `file_metadata_system.log` and console
+- Default database location: `/Users/mark/data/file_metadata.sqlite3`
+- Processing uses ThreadPoolExecutor for parallelism
+
 ## File Organization
 
 ```
