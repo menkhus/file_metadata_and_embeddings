@@ -1040,9 +1040,17 @@ class DatabaseManager:
                         unknown_error_files INTEGER,
                         start_time TEXT,
                         end_time TEXT,
-                        duration_seconds REAL
+                        duration_seconds REAL,
+                        status TEXT DEFAULT 'completed',
+                        interrupted BOOLEAN DEFAULT FALSE
                     )
                 ''')
+                # Add status/interrupted columns if missing (migration for existing databases)
+                for col, col_type in [('status', "TEXT DEFAULT 'completed'"), ('interrupted', 'BOOLEAN DEFAULT FALSE')]:
+                    try:
+                        cursor.execute(f'ALTER TABLE processing_stats ADD COLUMN {col} {col_type}')
+                    except sqlite3.OperationalError:
+                        pass  # Column already exists
                 # Add directory column if missing (migration for existing databases)
                 try:
                     cursor.execute('ALTER TABLE processing_stats ADD COLUMN directory TEXT')
@@ -1325,7 +1333,7 @@ class DatabaseManager:
             logger.error(f"Error updating directory stats for {directory_path}: {e}")
             return False
     
-    def record_processing_stats(self, session_id: str, stats: Dict[str, Any]) -> bool:
+    def record_processing_stats(self, session_id: str, stats: Dict[str, Any], interrupted: bool = False) -> bool:
         """Record processing statistics"""
         try:
             with self.get_connection() as conn:
@@ -1335,15 +1343,16 @@ class DatabaseManager:
                         session_id, directory, total_files, successful_files, failed_files,
                         permission_denied_files, size_limit_exceeded_files,
                         encoding_error_files, file_not_found_files, timeout_files, unknown_error_files,
-                        start_time, end_time, duration_seconds
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        start_time, end_time, duration_seconds, status, interrupted
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     session_id, stats.get('directory'),
                     stats.get('total_files', 0), stats.get('successful_files', 0),
                     stats.get('failed_files', 0), stats.get('permission_denied_files', 0),
                     stats.get('size_limit_exceeded_files', 0), stats.get('encoding_error_files', 0),
                     stats.get('file_not_found_files', 0), stats.get('timeout_files', 0), stats.get('unknown_error_files', 0),
-                    stats.get('start_time'), stats.get('end_time'), stats.get('duration_seconds', 0)
+                    stats.get('start_time'), stats.get('end_time'), stats.get('duration_seconds', 0),
+                    'interrupted' if interrupted else 'completed', interrupted
                 ))
                 conn.commit()
                 return True
@@ -1902,9 +1911,9 @@ class FileMetadataExtractor:
                         self.stats['failed_files'] += 1
                         self.stats['unknown_error_files'] += 1
             except (KeyboardInterrupt, SystemExit):
+                self.interrupt_handler.shutdown_requested = True
                 logger.info("Main process interrupted, shutting down executor and cancelling futures")
                 executor.shutdown(wait=False, cancel_futures=True)
-                raise
             finally:
                 executor.shutdown(wait=True, cancel_futures=True)
                 # Clean up database connections
@@ -1938,7 +1947,7 @@ class FileMetadataExtractor:
                 'duration_seconds': duration
             }
 
-            self.db_manager.record_processing_stats(session_id, processing_stats)
+            self.db_manager.record_processing_stats(session_id, processing_stats, interrupted=self.interrupt_handler.should_shutdown())
 
             results = {
                 **self.stats,
