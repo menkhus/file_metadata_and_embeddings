@@ -446,6 +446,64 @@ Most RAG demos show "ask a question, get an answer." What happened in this sessi
 
 The tool didn't just fit the task. It fit the *thinker*.
 
+## Git as Cognitive Fingerprint
+
+The final insight of this session came from looking at the session's own git log. Twelve commits, and they trace a complete cognitive cycle:
+
+```
+commits 1-5:   divergent thinking — expanding, exploring, adding
+commits 6-8:   creative leap — connecting to git, diffs, history
+commits 9-10:  deepening — tracing lineage, finding roots
+commit 11:     reflection — naming the process itself
+commit 12:     convergent thinking — simplifying, subtracting
+```
+
+Diverge, leap, deepen, reflect, converge. Git recorded every transition with timestamps, diffs, and commit messages that describe the reasoning at each step.
+
+### The git log tracked real thinking
+
+The commit history isn't just a record of what was produced. It's a record of **how the thinking happened**:
+
+- Six commits of addition, then one commit that deleted 49 lines and replaced them with something simpler
+- The final architecture was smaller than the intermediate one
+- The simplification came *after* the over-building, not instead of it
+- The user named their own pattern: "throw stuff on the wall, subtract to minimum, don't overdo it"
+
+That pattern is visible in the diff stats. The ratio of addition to subtraction, the timing of the convergent commit relative to the divergent ones, the size of the final output relative to the intermediate outputs — all of it is data.
+
+### Cognitive fingerprinting across sessions
+
+If the embedded git history captured this pattern across dozens of sessions, the AI would learn:
+
+- This user explores broadly before narrowing
+- Their best simplification comes *after* they've over-built
+- They think by talking through ideas, not by planning in silence
+- They find connections laterally, not linearly
+- Their final answer is always smaller than their intermediate answers
+
+That's not project knowledge. That's **cognitive fingerprinting** — a model of how the user thinks, derived from the structure of their git history. The commit DAG, when embedded semantically, traces a trajectory through idea-space. The shape of that trajectory is the user's thinking style.
+
+### Beyond "he knows me"
+
+The feeling of being known that drove this session ("I fixed Claude") was about the AI knowing the user's *projects*. Cognitive fingerprinting goes further — the AI would know the user's *process*. It could:
+
+- Recognize when the user is in divergent mode and support exploration
+- Recognize when convergence is coming and help simplify
+- Surface the user's own prior patterns: "last time you explored this broadly, you simplified to X"
+- Adapt its response style to the cognitive phase: expansive during divergence, focused during convergence
+
+This is the deepest layer of situatedness. Not just knowing what you work on. Not just knowing how your work evolved. Knowing **how your mind moves through problems** — and moving with it.
+
 ## Key Insight (Technical)
 
 The file_metadata MCP transforms codebase exploration from a **data retrieval problem** (read files, search text) into a **knowledge retrieval problem** (what is this about, how does it relate, when did it change). This is precisely the shift needed for AI agents to work effectively across large, multi-project codebases where the context window is the binding constraint.
+
+## Session Record
+
+**Date:** 2026-02-07
+**Duration:** Single evening session
+**Commits:** 13 (including this one)
+**Starting question:** "How many directories do I have in ~/src?"
+**Ending insight:** Git logs are cognitive fingerprints
+
+The entire case study was written live, during the session it documents. Every section was earned by something that actually happened in the conversation. Nothing was planned. Everything emerged.
