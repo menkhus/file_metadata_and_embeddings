@@ -231,6 +231,170 @@ This is the answer to "I don't ever want to give this up." Make it unkillable by
 
 ---
 
+## Future Direction: The Git DAG as a Semantic Filesystem
+
+### The insight
+
+Git already built the hard part. It tracked every change, every timestamp, every author, every relationship. It built a DAG (Directed Acyclic Graph) for free, as a side effect of version control. The semantic layer is *implicit* in the data but *invisible* to the tooling.
+
+We don't need to build a knowledge graph from scratch. We need to **graft a semantic nervous system onto a skeleton that already exists.**
+
+### Prior art in this corpus
+
+The idea has been developing across the user's work since at least August 2025 (found via the MCP's own index):
+
+- **`long_context_local_ai/PLAN.md`** — Knowledge graph schema with temporal edges: `action:edit --followed_by--> action:commit`. The DAG-as-knowledge-graph, already designed.
+- **`linux-kernel/notes/tools/SEMANTIC-ANALYSIS-GUIDE.md`** — "The git repository is no longer just code history — it's a temporal database you can query semantically." Applied to kernel security research, mining commit histories for CVE patterns by meaning.
+- **`fix_the_user_for_better_ai_outcomes/docs/cache_alignment_analysis.md`** — Reframe: "Old: how do I orchestrate a DAG of LLM calls? New: how do I structure payloads to maximize cache hits?" DAGs connected to semantic caching.
+- **`ai_shell_tools/backup_strategy.md`** — "Git-Based Version Control Strategy for Cognitive Programming." Git as a record of cognitive decisions, not just code history.
+
+### What git's DAG actually contains
+
+Git stores five things, each mapping to a knowledge dimension:
+
+| Git has | What it knows | Knowledge dimension |
+|---|---|---|
+| **Blobs** (content-addressed) | Exact content at every point in time | Historical truth |
+| **Trees** (directory snapshots) | What was next to what, when | Structural co-location |
+| **Commits** (DAG nodes) | Who, when, why (message), parent(s) | Temporal causation |
+| **Diffs** (between any two nodes) | What changed between any two points | Evolution |
+| **Branches/tags** (named refs) | Named lines of work, release points | Intent and milestones |
+
+Nobody queries git this way. We use `git log`, `git diff`, `git blame` — line-level tools. The knowledge is there. The query layer isn't.
+
+### Five capabilities a semantic layer on the DAG would provide
+
+**1. Commit embeddings — search history by meaning**
+
+Embed each commit's (message + diff summary). Now you can:
+- `git log --semantic="authentication refactor"` — even if no commit message says "authentication"
+- "When did the project shift from prototyping to production?" — semantic phase detection
+- "Find all commits conceptually similar to this PR" — for review, for learning
+
+**2. File trajectories — meaning over time**
+
+Track each file's embedding across commits. A file's embedding *changes* as its content changes. Plot that drift:
+- A file that starts as a utility and becomes a core module — the embedding trajectory shows it
+- A file whose meaning is stable for 50 commits then shifts suddenly — that's a refactor point
+- Two files whose trajectories converge — they're becoming coupled, whether or not they import each other
+
+**3. Co-change semantic graphs**
+
+Git already knows which files change together. Add embeddings and you get:
+- Files that change together *and* their changes are semantically similar — strong coupling
+- Files that change together but changes are semantically *different* — a dependency being dragged along
+- Files that *never* change together but are semantically similar — missed abstractions
+
+**4. Branch semantics**
+
+Embed all commits on a branch and you get a branch-level topic vector:
+- "What is this branch *about*?" — without reading any code
+- Compare branch topics to find parallel or conflicting work
+- Detect when a branch drifts from its stated purpose
+
+**5. Semantic blame**
+
+Not just "who changed this line" but "what conceptual thread does this change belong to?" Group changes by semantic similarity across time, and you get threads of intent woven through the history.
+
+### The SQLite schema: a parallel universe to .git
+
+```sql
+-- Mirrors git's DAG structure
+CREATE TABLE commits (
+    hash TEXT PRIMARY KEY,
+    timestamp TEXT,
+    author TEXT,
+    message TEXT,
+    diff_summary TEXT,
+    embedding BLOB          -- semantic vector of the commit
+);
+
+CREATE TABLE dag_edges (
+    child_hash TEXT,
+    parent_hash TEXT,
+    PRIMARY KEY (child_hash, parent_hash)
+);
+
+-- File state at each commit
+CREATE TABLE file_snapshots (
+    commit_hash TEXT,
+    file_path TEXT,
+    content_hash TEXT,
+    tfidf_keywords TEXT,    -- JSON array
+    embedding BLOB,         -- semantic vector of file at this point
+    PRIMARY KEY (commit_hash, file_path)
+);
+
+-- Auto-derived semantic relationships between commits
+CREATE TABLE semantic_edges (
+    source_hash TEXT,
+    target_hash TEXT,
+    similarity REAL,
+    edge_type TEXT          -- 'conceptually_similar', 'continues_work', 'reverts_intent'
+);
+
+-- Meaning drift per file over time
+CREATE TABLE file_trajectories (
+    file_path TEXT,
+    commit_hash TEXT,
+    embedding BLOB,
+    drift_from_previous REAL,  -- cosine distance from previous commit's embedding
+    PRIMARY KEY (file_path, commit_hash)
+);
+```
+
+### Example queries this enables
+
+```sql
+-- "What was this project about in October?"
+SELECT message, diff_summary FROM commits
+WHERE timestamp BETWEEN '2025-10-01' AND '2025-10-31'
+ORDER BY embedding <-> query_embedding LIMIT 10;
+
+-- "When did this file's purpose change?"
+SELECT commit_hash, drift_from_previous FROM file_trajectories
+WHERE file_path = 'ai_shell.py' AND drift_from_previous > 0.3
+ORDER BY commit_hash;
+
+-- "Find commits semantically related to this one"
+SELECT c.message, se.similarity FROM semantic_edges se
+JOIN commits c ON c.hash = se.target_hash
+WHERE se.source_hash = ? AND se.similarity > 0.7
+ORDER BY se.similarity DESC;
+
+-- "Which files are semantically coupled but never co-change?"
+SELECT a.file_path, b.file_path, cosine_sim(a.embedding, b.embedding) as sim
+FROM file_snapshots a, file_snapshots b
+WHERE a.commit_hash = b.commit_hash
+AND a.file_path < b.file_path
+AND sim > 0.8
+AND NOT EXISTS (
+    SELECT 1 FROM file_snapshots fa
+    JOIN file_snapshots fb ON fa.commit_hash = fb.commit_hash
+    WHERE fa.file_path = a.file_path AND fb.file_path = b.file_path
+);
+```
+
+### How it connects to the existing architecture
+
+This isn't a replacement for the current file_metadata MCP — it's the **time dimension** that's currently missing.
+
+| Current MCP | Git-informed semantic layer |
+|---|---|
+| What files exist now | What files existed at any point |
+| What a file is about now | How a file's meaning evolved |
+| Which files are related by content | Which files are related by co-evolution |
+| Snapshot-based (one point in time) | DAG-based (full history) |
+| Answers "what is?" | Answers "how did it become?" |
+
+The current index tells you the *state* of your work. The git-informed layer tells you the *story* of your work. Together: a complete semantic filesystem.
+
+### The completion
+
+Git is the DAG of knowledge. SQLite + embeddings is what makes it queryable by meaning. The filesystem is scaffolding. The index is the present tense. The DAG is the past tense. Together they give the AI not just awareness of your work, but understanding of how your work *became what it is*.
+
+---
+
 ## Summary
 
 | Problem | Status | Severity |
