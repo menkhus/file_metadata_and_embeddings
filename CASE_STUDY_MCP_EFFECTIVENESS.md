@@ -337,6 +337,34 @@ The `+` / `-` polarity is the key:
 
 Diffs are not descriptions of code. They are **series of propositions about what the code should become.** That's closer to how AI processes language natively — in propositions, not descriptions. Diffs are already in the AI's native format.
 
+### The `ed` lineage: a 50-year-old primitive that was always meant for AI
+
+The unified diff format is `ed` script heritage. Ken Thompson's `ed` (1969) was designed for teletypes — no screen, no cursor, just a line buffer and commands. That constraint produced something elegant: **a language for describing changes to text without seeing the text.**
+
+Which is exactly what AI does. The AI doesn't see files. It describes changes to them.
+
+```
+ed (1969):    3,5d                    "delete lines 3 through 5"
+diff (1974):  -this line              "remove this"
+AI (2026):    old_string/new_string   "find this, replace with that"
+```
+
+Three generations of the same idea: **address the text, describe the change, apply it.** The abstraction survived because it's fundamental — you can't get simpler than "what was, what should be."
+
+`ed` was arcane for human users because humans think spatially — they want to *see* the file, move a cursor, type in place. But `ed`'s model — blind edits described as transformations — is how AI naturally works. The AI has no cursor. It has no screen. It has a description of what to find and what to replace it with. That's `ed` thinking, and it's the most natural thing in the world for a language model.
+
+The lineage is unbroken:
+
+| Era | Tool | Model |
+|---|---|---|
+| 1969 | `ed` | Line-addressed commands on an invisible buffer |
+| 1974 | `diff` | Comparison output showing additions/deletions |
+| 1985 | `patch` | Apply diffs to reconstruct or modify files |
+| 2005 | `git` | Store every diff forever in a content-addressed DAG |
+| 2026 | AI Edit tool | Generate patches from natural language intent |
+
+Ken Thompson built `ed` for teletypes. Fifty years later, the same primitive — describe changes to text you can't see — turns out to be the native operation of AI language models. The most arcane Unix tool was accidentally the most forward-looking.
+
 ### The practical constraint: current state is the context
 
 However, the diff history is not the primary context for most work. The current file is the materialized view of all its diffs: `original + additions - deletions = what you have now`. For day-to-day coding, the AI needs what the code *is*, not what it *was*.
