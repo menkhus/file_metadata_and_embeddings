@@ -393,6 +393,59 @@ human intent → AI reasoning → git DAG → semantic diff index → answer
 
 The human never learns `git bisect`. The AI never forgets it. The retrieval layer over embedded diffs turns git's power-user features into natural language queries, bridging the gap between what git knows and what humans can easily ask.
 
+## The Noodler's Tool
+
+At the end of this session, the user observed something about how the session actually worked:
+
+> "I am feeling around in an opportunity space, and in one sense I am using the wrong tool, except it turns out for a noodler, this RAG is the right tool."
+
+### What noodling looks like
+
+This session was not engineering. It was **exploration** — poking at ideas, following threads, seeing what connects. Every question was a probe, not a spec:
+
+- "How many directories?" → just looking around
+- "Tell me more about projects" → following a thread
+- "Find all the sprint stuff" → "I wonder..."
+- "Is git with embeddings in there already?" → "did I already think this?"
+
+No question had a predetermined answer. Each response sparked the next question. The session was a chain of lateral moves across a wide surface, not a march toward a known destination.
+
+### Why most tools fail noodlers
+
+Coding tools assume you know what you want and need help getting there. IDEs, debuggers, linters, even most AI coding assistants — they're precision instruments for known problems. They ask: "What do you want to build?" The noodler doesn't know yet. They're finding out by exploring.
+
+Traditional search tools fail noodlers too. Grep requires you to know what string to search for. File browsers require you to know which directory to look in. Both assume the user has a target. The noodler doesn't have a target — they have a *direction*, and they need a tool that can keep up with changes in direction.
+
+### Why RAG works for noodling
+
+The file_metadata MCP supported noodling because:
+
+1. **Every probe returned meaning, not data.** TF-IDF keywords, snippets with context, metadata — each response was insight-sized, enough to spark the next question without flooding the context window.
+
+2. **Lateral movement was free.** Going from "sprint evolution" to "orchestration vs intelligence" to "SQLite as git of knowledge" to "diffs as AI language" to "`ed` in 1969" cost nothing. Each jump was one or two MCP queries. No setup, no directory navigation, no "let me open that project first."
+
+3. **Cross-project awareness enabled unexpected connections.** The noodler's superpower is connecting things that don't obviously belong together. The MCP — indexing everything from the root — made those connections surfaceable. A question about sprints led to a question about project management which led to a thesis about orchestration which led to an architecture for semantic filesystems. No single-project tool enables that arc.
+
+4. **The context window stayed clean.** Because the MCP returned structured, compressed responses (not raw file contents), there was room in the context for *reasoning*. The AI could synthesize, connect, and build narratives instead of managing data. The noodler got a thinking partner, not a search terminal.
+
+### The session's arc as evidence
+
+Ten commits in this session, starting from "how many directories do I have?" and ending at Ken Thompson's `ed` in 1969. The path:
+
+```
+directories → file metadata → sprint evolution → orchestration thesis →
+SQLite architecture → emergent awareness → "I fixed Claude" → IBM XT →
+git DAG → diffs as AI language → ed lineage → this reflection
+```
+
+None of this was planned. Each step emerged from the previous one. That's noodling — and the tool supported every turn because it was fast, broad, meaning-oriented, and context-efficient.
+
+### The product insight
+
+Most RAG demos show "ask a question, get an answer." What happened in this session was **ask a question, get a spark, follow the spark, get another spark, follow that one.** The killer app for RAG isn't answering questions. It's **supporting the noodler** — the person who thinks by exploring, who finds insights by wandering, who needs breadth and connection more than depth and precision.
+
+The tool didn't just fit the task. It fit the *thinker*.
+
 ## Key Insight (Technical)
 
 The file_metadata MCP transforms codebase exploration from a **data retrieval problem** (read files, search text) into a **knowledge retrieval problem** (what is this about, how does it relate, when did it change). This is precisely the shift needed for AI agents to work effectively across large, multi-project codebases where the context window is the binding constraint.
