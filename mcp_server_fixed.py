@@ -142,6 +142,7 @@ class FileMetadataDB:
                     'file_path': r.file_path,
                     'file_name': r.metadata.get('file_name', ''),
                     'file_type': r.metadata.get('file_type', ''),
+                    'modified_date': r.metadata.get('modified_date', ''),
                     'chunk_index': r.chunk_index,
                     'chunk_text': r.chunk_text[:200] if r.chunk_text else '',  # Preview
                     'similarity': r.similarity_score,
@@ -941,7 +942,7 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResu
                 response = f"Found {len(results)} semantically similar results for '{query}':\n\n"
                 for r in results:
                     response += f"• {r['file_path']} (chunk {r['chunk_index']})\n"
-                    response += f"  Similarity: {r['similarity']:.2%} | Type: {r['file_type']}\n"
+                    response += f"  Similarity: {r['similarity']:.2%} | Type: {r['file_type']} | Modified: {r['modified_date']}\n"
                     response += f"  Preview: {r['chunk_text']}...\n"
                     if r.get('tfidf_keywords'):
                         response += f"  Keywords: {', '.join(r['tfidf_keywords'])}\n"

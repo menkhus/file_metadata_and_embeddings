@@ -1,0 +1,37 @@
+--- /var/folders/zr/p074945504x12fkrbt22lp3m0000gn/T/tmp.lravjBSaLr	2026-02-08 06:21:52
++++ /var/folders/zr/p074945504x12fkrbt22lp3m0000gn/T/tmp.RmuBruiomm	2026-02-08 06:21:52
+@@ -1040,7 +1040,7 @@
+                         unknown_error_files INTEGER,
+                         start_time TEXT,
+                         end_time TEXT,
+-                        duration_seconds REAL
++                        duration_seconds REAL, status TEXT DEFAULT 'completed', interrupted BOOLEAN DEFAULT FALSE
+                     )
+                 ''')
+                 # Add directory column if missing (migration for existing databases)
+@@ -1325,7 +1325,7 @@
+             logger.error(f"Error updating directory stats for {directory_path}: {e}")
+             return False
+     
+-    def record_processing_stats(self, session_id: str, stats: Dict[str, Any]) -> bool:
++    def record_processing_stats(self, session_id: str, stats: Dict[str, Any], interrupted: bool = False) -> bool:
+         """Record processing statistics"""
+         try:
+             with self.get_connection() as conn:
+@@ -1336,14 +1336,14 @@
+                         permission_denied_files, size_limit_exceeded_files,
+                         encoding_error_files, file_not_found_files, timeout_files, unknown_error_files,
+                         start_time, end_time, duration_seconds
+-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
++                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 ''', (
+                     session_id, stats.get('directory'),
+                     stats.get('total_files', 0), stats.get('successful_files', 0),
+                     stats.get('failed_files', 0), stats.get('permission_denied_files', 0),
+                     stats.get('size_limit_exceeded_files', 0), stats.get('encoding_error_files', 0),
+                     stats.get('file_not_found_files', 0), stats.get('timeout_files', 0), stats.get('unknown_error_files', 0),
+-                    stats.get('start_time'), stats.get('end_time'), stats.get('duration_seconds', 0)
++                    stats.get('start_time'), stats.get('end_time'), stats.get('duration_seconds', 0), 'interrupted' if interrupted else 'completed', interrupted
+                 ))
+                 conn.commit()
+                 return True

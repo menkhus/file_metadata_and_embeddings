@@ -1,0 +1,11 @@
+--- /var/folders/zr/p074945504x12fkrbt22lp3m0000gn/T/tmp.2IyGgToylU	2026-02-08 06:21:12
++++ /var/folders/zr/p074945504x12fkrbt22lp3m0000gn/T/tmp.zzae2ecOii	2026-02-08 06:21:12
+@@ -1040,7 +1040,7 @@
+                         unknown_error_files INTEGER,
+                         start_time TEXT,
+                         end_time TEXT,
+-                        duration_seconds REAL
++                        duration_seconds REAL, status TEXT DEFAULT 'completed', interrupted BOOLEAN DEFAULT FALSE
+                     )
+                 ''')
+                 # Add directory column if missing (migration for existing databases)

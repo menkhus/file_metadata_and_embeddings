@@ -1,0 +1,20 @@
+--- /var/folders/zr/p074945504x12fkrbt22lp3m0000gn/T/tmp.Mk6IO846Yg	2026-02-08 06:22:08
++++ /var/folders/zr/p074945504x12fkrbt22lp3m0000gn/T/tmp.cBhNFefn3z	2026-02-08 06:22:08
+@@ -1901,7 +1901,7 @@
+                         logger.error(f"Error processing {file_path}: {e}")
+                         self.stats['failed_files'] += 1
+                         self.stats['unknown_error_files'] += 1
+-            except (KeyboardInterrupt, SystemExit):
++            except (KeyboardInterrupt, SystemExit): self.interrupt_handler.shutdown_requested = True
+                 logger.info("Main process interrupted, shutting down executor and cancelling futures")
+                 executor.shutdown(wait=False, cancel_futures=True)
+                 raise
+@@ -1938,7 +1938,7 @@
+                 'duration_seconds': duration
+             }
+ 
+-            self.db_manager.record_processing_stats(session_id, processing_stats)
++            self.db_manager.record_processing_stats(session_id, processing_stats, interrupted=self.interrupt_handler.should_shutdown())
+ 
+             results = {
+                 **self.stats,
