@@ -124,9 +124,26 @@ The more the tool is trusted (Problem 1 solved), the more freshness matters. If 
 - Doesn't work for non-git directories
 - Very efficient for active development repos
 
-### Recommended approach
+### Recommended approach (revised)
 
-A combination: **git-aware differential for code repos** + **periodic full scan with hash comparison** for everything else. New directories should be detected on server startup. Stale results should be flagged, not silently served.
+Don't solve freshness with hooks, watchers, or re-indexing. **Use git itself as the freshness layer at query time.**
+
+The database is a snapshot — it records the state at index time. Git fills the gap:
+
+```
+truth = indexed_snapshot + git_delta_since_snapshot
+```
+
+At query time, for any directory with `.git`:
+1. Database says: "here's what I knew as of Tuesday"
+2. `git log --since=Tuesday` says: "here's what changed"
+3. `git status` says: "here's what's new and untracked"
+4. `git diff` says: "here's what's modified but uncommitted"
+5. AI assembles: snapshot + delta = current truth
+
+No hooks. No watchers. No index-on-write. The expensive part (indexing, embedding) runs infrequently. The cheap part (git status, git diff) fills the gap for free.
+
+For non-git directories (PDFs, static notes): periodic hash comparison on a lazy schedule. They rarely change anyway.
 
 ## Problem 4: Multi-AI Feature Collision
 
@@ -158,76 +175,84 @@ This connects back to the project's own thesis: orchestration over intelligence.
 
 ---
 
-## Future Direction: Index-on-Write and Per-Project Knowledge Layers
+## Future Direction: Centralized Database + Git as Freshness Layer
 
-### The architectural shift
+### The minimum viable architecture
 
-The freshness problem (Problem 3) assumes a traditional flow:
+The earlier version of this document proposed per-project SQLite databases with index-on-write hooks. That was over-engineered. The simpler, better architecture:
+
+**One central SQLite database. One FAISS index. Git fills the freshness gap at query time.**
+
+This is what already exists: `~/data/file_metadata.sqlite3` with 40K files and 187K vectors. The architecture is proven. What we're adding is: teach the MCP to ask git what changed since the last index.
+
+### Why centralized beats per-project
+
+- **FAISS works better with more vectors.** One big index has better recall than 65 small ones.
+- **Cross-project queries require a single index.** The sprint-tracing query that made the 2026-02-07 session work — spanning 6 projects — requires one index, not federated queries across 65 SQLite files.
+- **One database = one backup, one schema, one migration path.**
+- **The MCP server connects to one database.** That's already working. Don't break it.
+
+### The freshness formula
 
 ```
-write file → file sits on disk → later, maybe, run indexer → index goes stale
+truth = indexed_snapshot + git_delta_since_snapshot
 ```
 
-The solution isn't better polling or smarter re-indexing schedules. It's inverting the flow:
+The database records the state at index time. Each file row has an `indexed_at` timestamp. At query time:
 
 ```
-write file → hook intercepts → index updated → embeddings updated → AI knows immediately
+1. Database says: "here's what I knew as of Tuesday"
+2. git log --since=Tuesday says: "here's what changed"
+3. git status says: "here's what's new and untracked"
+4. git diff says: "here's what's modified but uncommitted"
+5. AI assembles: database context + git delta = current truth
 ```
 
-Don't poll for changes. React to them.
+The expensive part (indexing, embedding, TF-IDF) runs infrequently — daily, weekly, whenever. The cheap part (`git status`, `git diff`) fills the gap at query time for free. Git operations are instant (local, no network). The diff since last index is small (days of work, not the whole corpus). The AI can hold a small diff in context easily.
 
-### SQLite is the git of knowledge
+### Content-type awareness
 
-`.git` is a hidden directory that makes a project *versioned*. You don't think about it — you just expect `git log` to work. The same pattern applies to knowledge:
+`.git` is one signal for what kind of knowledge lives in a directory. The minimum integration layer detects content type and applies the cheapest viable strategy:
 
-A `.index` (or equivalent) SQLite database in every project, maintained automatically, makes the project *intelligent*. You don't think about it — you just expect the AI to know what's in the project.
-
-SQLite is purpose-built for this role:
-- Embedded, zero-config, no server process needed
-- FTS5 for full-text search built in
-- Handles concurrent reads from multiple AI agents
-- Single file, portable, lives alongside the code
-- Per-project isolation — each project carries its own knowledge layer
-
-A typical project's index would be 10-50MB — trivial compared to `node_modules` or a `.git` directory. Storage is free. Freshness is priceless.
-
-### Hook points
-
-The write-to-index pipeline can hook at multiple levels:
-
-| Hook point | Mechanism | Latency | Coverage |
+| Signal | Knowledge type | Index strategy | Freshness strategy |
 |---|---|---|---|
-| Claude Code hooks | Post-write hook triggers indexing | Instant | AI-written files |
-| Editor plugins | On-save triggers indexing | Instant | All edited files |
-| `git hooks` (post-commit) | Indexes changed files per commit | Per-commit | All committed changes |
-| `fswatch` / `watchman` | OS-level file system events | Near-instant | Everything |
-| CI/CD pipeline | Index as build step | Per-push | Shared/deployed code |
+| `.git` present | Active creative work | Full index with embeddings | Git delta at query time |
+| `*.pdf` files | Reference documents | Extract text, embed | Rarely changes — hash check |
+| `*.csv` files | Structured data | Schema + sample rows | File hash comparison |
+| `*.jpg/png` files | Visual knowledge | Image descriptions, EXIF | File hash comparison |
+| `*.md` (no git) | Static notes | FTS + embeddings | Periodic hash check |
+| Bookmarks/URLs | Web knowledge | Cached extracts | Periodic refresh |
 
-The lightest viable approach: **Claude Code hooks + git post-commit**. This covers the two main write paths (AI writes, human commits) without requiring OS-level watchers.
+Each type gets the cheapest viable indexing. PDFs almost never change — index once. Git repos are always changing — use git itself as the freshness layer. Don't over-engineer any of it.
 
-### Per-project index, federated queries
+### How the AI assembles context
 
-If every project has its own SQLite index that's always current:
+The database gives **breadth** (it knows about every file, with embeddings, keywords, snippets). The git delta gives **freshness** (what just happened). The AI merges them:
 
-- **No stale results, ever.** The trust problem disappears.
-- **No cold start.** The index is already there when the AI arrives.
-- **No central server needed.** Each project is self-aware.
-- **Freshness is guaranteed by construction**, not by maintenance.
+```
+AI: [reads database] "ai_shell.py is a 72KB shell module,
+     keywords: self, results, formatted_results"
+AI: [reads git diff] "since last index, ai_shell.py had 3 commits:
+     refactored search, added caching, fixed timeout bug"
+AI: [assembles] "ai_shell.py is the main shell module, recently
+     had search refactored with caching added and a timeout fix"
+```
 
-The top-of-tree experience (what we demonstrated in the 2026-02-07 session) becomes a federated query across per-project indexes. Each project maintains its own truth. The orchestration layer queries across all of them. Same architecture, but distributed and always fresh.
+The database is the **memory**. Git is the **news feed**. The AI is the **reader** who integrates both. The database provides the rich context (embeddings, TF-IDF, structure) that's expensive to compute. Git provides the delta that's free to query. The AI does what it's good at — reconciling two sources into a coherent picture.
 
-### What this makes possible
+### Why this is the right architecture
 
-When every file write triggers indexing, the AI's knowledge is always current. The gap between "what's on disk" and "what the AI knows" drops to zero. This eliminates an entire class of problems:
+It follows the core principle: **let the existing parts do their job, add just enough to be effective, really really cheaply.**
 
-- No ghost results from deleted files
-- No stale snippets from modified files
-- No missing results from new files
-- No "did you re-index?" conversations
+- Git already tracks changes → don't rebuild change tracking
+- SQLite already does FTS and storage → don't build a custom database
+- FAISS already does similarity search → keep one big index
+- The AI already assembles context → don't pre-compute everything
+- Embeddings are expensive → compute them once, let git fill the gap
 
-The AI becomes a **live collaborator** rather than a **periodic snapshot reviewer**. And the user never has to think about indexing — it just happens, like git tracking changes, like SQLite persisting data.
+The minimum integration layer is: **a central SQLite database, a timestamp per file, and the ability to ask git what happened since then.** Everything else is the AI doing what it's good at.
 
-This is the answer to "I don't ever want to give this up." Make it unkillable by making it automatic.
+This is the answer to "I don't ever want to give this up." Make it cheap enough that there's no reason to turn it off.
 
 ---
 
@@ -401,7 +426,7 @@ Git is the DAG of knowledge. SQLite + embeddings is what makes it queryable by m
 |---|---|---|
 | AI tool preference formation (last mile) | Validated — works when tool is responsive and results are rich | Solved in practice, needs design principles documented |
 | Cold start latency | Solved — persistent server | Solved |
-| Index freshness/lifecycle | Architectural direction identified — index-on-write with per-project SQLite | High — erodes trust as usage increases |
+| Index freshness/lifecycle | Architectural direction: central database + git delta at query time | High — but solvable cheaply with existing tools |
 | Multi-AI coordination | Unsolved — human is integration layer | Medium — manageable at current scale |
 
-The immediate priority is **index freshness**, and the architectural answer is **index-on-write**: hook file writes, update the index immediately, and make freshness a property of the system rather than a maintenance task. SQLite per project, federated at the root. The git of knowledge.
+The immediate priority is **index freshness**, and the architectural answer is **git as the freshness layer**: one central SQLite database with periodic indexing, git delta at query time, AI assembles snapshot + delta into current truth. No hooks, no watchers, no per-project databases. Let existing tools do their jobs. Add just enough to be effective, really really cheaply.
