@@ -12,7 +12,7 @@ This system provides:
 6. Robust error handling and graceful degradation
 
 Requirements:
-pip install sqlite3 pathlib nltk scikit-learn sentence-transformers pandas numpy tqdm setproctitle
+pip install numpy scikit-learn sentence-transformers tqdm setproctitle
 """
 
 import os
@@ -30,40 +30,23 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 import logging
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from enum import Enum
 
 # Third-party imports (install via pip)
 try:
-    import pandas as pd
     import numpy as np
     from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.decomposition import LatentDirichletAllocation
     from sentence_transformers import SentenceTransformer
-    import nltk
-    from nltk.corpus import stopwords
-    from nltk.tokenize import word_tokenize, sent_tokenize
-    from nltk.stem import WordNetLemmatizer
     from tqdm import tqdm
     import setproctitle
-    # Download required NLTK data with error handling
-    try:
-        nltk.download('punkt', quiet=True)
-        nltk.download('stopwords', quiet=True)
-        nltk.download('wordnet', quiet=True)
-        nltk.download('averaged_perceptron_tagger', quiet=True)
-        NLTK_AVAILABLE = True
-    except Exception as e:
-        print(f"Warning: Could not download NLTK data: {e}")
-        NLTK_AVAILABLE = False
-    
+
 except ImportError as e:
     print(f"Missing required package: {e}")
-    print("Please install with: pip install pandas numpy scikit-learn sentence-transformers nltk tqdm")
+    print("Please install with: pip install numpy scikit-learn sentence-transformers tqdm")
     print("Continuing with reduced functionality...")
-    NLTK_AVAILABLE = False
 
 # Configure logging with improved chardet debug routing
 # Create file handler for all debug messages
@@ -129,13 +112,9 @@ class ContentAnalysis:
     word_count: int
     char_count: int
     language: str
-    topic_summary: str
-    keywords: List[str]
     tfidf_keywords: List[Tuple[str, float]]
-    lda_topics: List[Tuple[int, List[Tuple[str, float]]]]
     chunks: List[str]
     embeddings: List[List[float]]
-    sentiment_score: Optional[float] = None
     processing_status: str = ProcessingStatus.SUCCESS.value
     error_message: Optional[str] = None
 
@@ -433,35 +412,15 @@ class TextProcessor:
 
     def __init__(self, skip_embeddings: bool = False):
         self.stop_words = set()
-        self.lemmatizer = None
         self.sentence_model = None
-        self.nltk_available = NLTK_AVAILABLE
         self.skip_embeddings = skip_embeddings
 
         # Initialize components with error handling
-        self._initialize_nltk_components()
         if not skip_embeddings:
             self._initialize_sentence_transformer()
         else:
             logger.info("Skipping sentence transformer initialization (--skip-embeddings)")
-    
-    def _initialize_nltk_components(self):
-        """Initialize NLTK components with error handling"""
-        if not self.nltk_available:
-            logger.warning("NLTK not available, text processing will be limited")
-            return
-        
-        try:
-            from nltk.corpus import stopwords
-            from nltk.stem import WordNetLemmatizer
-            
-            self.stop_words = set(stopwords.words('english'))
-            self.lemmatizer = WordNetLemmatizer()
-            logger.info("NLTK components initialized successfully")
-        except Exception as e:
-            logger.warning(f"Failed to initialize NLTK components: {e}")
-            self.nltk_available = False
-    
+
     def _initialize_sentence_transformer(self):
         """Initialize sentence transformer with error handling"""
         try:
@@ -533,30 +492,15 @@ class TextProcessor:
             return text[:1000] if text else ""  # Return truncated version as fallback
     
     def extract_keywords(self, text: str, max_keywords: int = 10) -> List[str]:
-        """Extract keywords using basic NLP with error handling"""
+        """Extract keywords using simple word frequency"""
         try:
-            if not text or not self.nltk_available:
-                # Fallback: simple word frequency
-                words = text.lower().split()
-                words = [word for word in words if len(word) > 2 and word.isalpha()]
-                from collections import Counter
-                word_freq = Counter(words)
-                return [word for word, freq in word_freq.most_common(max_keywords)]
-            
-            words = word_tokenize(text.lower())
-            # Filter out stop words and short words
-            keywords = []
-            for word in words:
-                if (word.isalpha() and len(word) > 2 and 
-                    word not in self.stop_words and self.lemmatizer):
-                    try:
-                        keywords.append(self.lemmatizer.lemmatize(word))
-                    except:
-                        keywords.append(word)
-            
-            # Count frequency and return top keywords
+            if not text:
+                return []
+
+            words = text.lower().split()
+            words = [word for word in words if len(word) > 2 and word.isalpha()]
             from collections import Counter
-            word_freq = Counter(keywords)
+            word_freq = Counter(words)
             return [word for word, freq in word_freq.most_common(max_keywords)]
         except Exception as e:
             logger.warning(f"Error extracting keywords: {e}")
@@ -603,11 +547,8 @@ class TextProcessor:
             if not text:
                 return "No content to summarize"
             
-            if self.nltk_available:
-                sentences = sent_tokenize(text)
-            else:
-                # Fallback: split on periods
-                sentences = [s.strip() for s in text.split('.') if s.strip()]
+            # Split on periods
+            sentences = [s.strip() for s in text.split('.') if s.strip()]
             
             if not sentences:
                 return text[:max_length]
@@ -667,72 +608,6 @@ class TextProcessor:
             logger.warning(f"TF-IDF extraction failed: {e}")
             return []
     
-    def extract_lda_topics(self, texts: List[str], n_topics: int = 5) -> List[Tuple[int, List[Tuple[str, float]]]]:
-        """Extract LDA topics from text corpus with error handling"""
-        try:
-            if not texts:
-                return []
-            
-            # Filter out empty texts
-            texts = [text.strip() for text in texts if text.strip()]
-            if len(texts) < 2:  # Need at least 2 documents for LDA
-                return []
-            
-            # Adjust number of topics based on corpus size
-            # Rule of thumb: don't have more topics than documents
-            actual_n_topics = min(n_topics, len(texts))
-            
-            # Create a new TfidfVectorizer for this specific corpus
-            # For LDA, we typically want more features and less aggressive filtering
-            vocab_size = len(set(' '.join(texts).split()))
-            max_features = min(1000, vocab_size)
-            
-            tfidf_vectorizer = TfidfVectorizer(
-                max_features=max_features,
-                stop_words='english',
-                ngram_range=(1, 2),
-                min_df=1,  # At least in 1 document
-                max_df=0.95  # At most in 95% of documents
-            )
-            
-            # Fit TF-IDF matrix
-            tfidf_matrix = tfidf_vectorizer.fit_transform(texts)
-            
-            # Check if we have enough features
-            if tfidf_matrix.shape[1] == 0:
-                logger.warning("No features extracted for LDA")
-                return []
-            
-            # Create and fit LDA model
-            lda_model = LatentDirichletAllocation(
-                n_components=actual_n_topics,
-                random_state=42,
-                max_iter=10,
-                learning_method='batch'
-            )
-            
-            lda_model.fit(tfidf_matrix)
-            feature_names = tfidf_vectorizer.get_feature_names_out()
-            
-            # Extract topics
-            topics = []
-            for topic_idx, topic in enumerate(lda_model.components_):
-                # Get top words for this topic
-                num_top_words = min(10, len(feature_names))
-                top_words_idx = topic.argsort()[-num_top_words:][::-1]
-                
-                # Ensure indices are within bounds
-                top_words_idx = [idx for idx in top_words_idx if idx < len(feature_names)]
-                
-                top_words = [(feature_names[i], float(topic[i])) for i in top_words_idx]
-                topics.append((topic_idx, top_words))
-            
-            return topics
-            
-        except Exception as e:
-            logger.warning(f"LDA topic extraction failed: {e}")
-            return []
-    
     def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
         """Generate sentence embeddings with error handling"""
         try:
@@ -765,10 +640,7 @@ class TextProcessor:
                     word_count=0,
                     char_count=0,
                     language='unknown',
-                    topic_summary="No content to analyze",
-                    keywords=[],
                     tfidf_keywords=[],
-                    lda_topics=[],
                     chunks=[],
                     embeddings=[],
                     processing_status=processing_status,
@@ -802,23 +674,13 @@ class TextProcessor:
                 except Exception as e:
                     logger.warning(f"Error extracting TF-IDF keywords for {file_path}: {e}")
 
-            # Dropped: NLTK keywords (redundant with TF-IDF)
-            # Dropped: LDA topics (slow, better done corpus-wide offline)
-            # Dropped: topic_summary (was just first sentences, not real summary)
-            keywords = []
-            lda_topics = []
-            topic_summary = ""
-            
             return ContentAnalysis(
                 file_path=file_path,
                 file_hash=hashlib.md5(content.encode('utf-8', errors='ignore')).hexdigest(),
                 word_count=word_count,
                 char_count=char_count,
                 language='en',  # Simple assumption - could be enhanced
-                topic_summary=topic_summary,
-                keywords=keywords,
                 tfidf_keywords=tfidf_keywords,
-                lda_topics=lda_topics,
                 chunks=chunks,
                 embeddings=embeddings,
                 processing_status=processing_status,
@@ -835,10 +697,7 @@ class TextProcessor:
                 word_count=0,
                 char_count=0,
                 language='unknown',
-                topic_summary="Error during analysis",
-                keywords=[],
                 tfidf_keywords=[],
-                lda_topics=[],
                 chunks=[],
                 embeddings=[],
                 processing_status=processing_status,
@@ -987,11 +846,7 @@ class DatabaseManager:
                         word_count INTEGER,
                         char_count INTEGER,
                         language TEXT,
-                        topic_summary TEXT,
-                        keywords TEXT,  -- JSON array
                         tfidf_keywords TEXT,  -- JSON array
-                        lda_topics TEXT,  -- JSON array
-                        sentiment_score REAL,
                         processing_status TEXT DEFAULT 'success',
                         error_message TEXT,
                         analysis_date TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -1149,9 +1004,8 @@ class DatabaseManager:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
-                    SELECT file_path, file_hash, word_count, char_count, language,
-                           topic_summary, keywords, tfidf_keywords, lda_topics,
-                           sentiment_score, processing_status, error_message
+                    SELECT file_path, file_hash, word_count, char_count, language, tfidf_keywords,
+                           processing_status, error_message
                     FROM content_analysis
                     WHERE file_hash = ? AND processing_status = 'success'
                     LIMIT 1
@@ -1164,13 +1018,9 @@ class DatabaseManager:
                         'word_count': row[2],
                         'char_count': row[3],
                         'language': row[4],
-                        'topic_summary': row[5],
-                        'keywords': row[6],
-                        'tfidf_keywords': row[7],
-                        'lda_topics': row[8],
-                        'sentiment_score': row[9],
-                        'processing_status': row[10],
-                        'error_message': row[11]
+                        'tfidf_keywords': row[5],
+                        'processing_status': row[6],
+                        'error_message': row[7]
                     }
                 return None
         except Exception as e:
@@ -1202,12 +1052,10 @@ class DatabaseManager:
                 # Copy content_analysis row with new file_path
                 cursor.execute('''
                     INSERT OR REPLACE INTO content_analysis
-                    (file_path, file_hash, word_count, char_count, language,
-                     topic_summary, keywords, tfidf_keywords, lda_topics,
-                     sentiment_score, processing_status, error_message, processing_time_seconds)
-                    SELECT ?, file_hash, word_count, char_count, language,
-                           topic_summary, keywords, tfidf_keywords, lda_topics,
-                           sentiment_score, processing_status, error_message, 0.0
+                    (file_path, file_hash, word_count, char_count, language, tfidf_keywords,
+                     processing_status, error_message, processing_time_seconds)
+                    SELECT ?, file_hash, word_count, char_count, language, tfidf_keywords,
+                           processing_status, error_message, 0.0
                     FROM content_analysis
                     WHERE file_path = ?
                 ''', (target_path, source_path))
@@ -1256,14 +1104,11 @@ class DatabaseManager:
                 cursor.execute('''
                     INSERT OR REPLACE INTO content_analysis (
                         file_path, file_hash, word_count, char_count, language,
-                        topic_summary, keywords, tfidf_keywords, lda_topics,
-                        sentiment_score, processing_status, error_message, processing_time_seconds
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        tfidf_keywords, processing_status, error_message, processing_time_seconds
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     analysis.file_path, analysis.file_hash, analysis.word_count,
-                    analysis.char_count, analysis.language, analysis.topic_summary,
-                    json.dumps(analysis.keywords), json.dumps(analysis.tfidf_keywords),
-                    json.dumps(analysis.lda_topics), analysis.sentiment_score,
+                    analysis.char_count, analysis.language, json.dumps(analysis.tfidf_keywords),
                     analysis.processing_status, analysis.error_message,
                     processing_time_seconds
                 ))
