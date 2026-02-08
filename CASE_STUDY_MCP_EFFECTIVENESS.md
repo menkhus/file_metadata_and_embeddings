@@ -300,6 +300,71 @@ The user had been circling "git with embeddings" for 6 months without realizing 
 
 **The tool's greatest proof of value was finding the ideas that led to the tool itself.**
 
+## Diffs: The Secret Language of AI
+
+A late-session exploration revealed something about the relationship between AI, diffs, and git that reframes the entire retrieval architecture.
+
+### AI thinks in patches, not files
+
+When the AI edits a file, it doesn't rewrite it. It generates:
+
+```
+old_string: "this exact text"
+new_string: "this replacement text"
+```
+
+That's a patch. The Edit tool used throughout this session is literally a patch protocol — find this, replace with that. The AI thinks in diffs natively. It doesn't compose files, it composes *changes to files*.
+
+### Diffs are meaning-overloaded primitives
+
+Every line in a diff carries six dimensions simultaneously:
+
+1. **Content** — the text itself
+2. **Polarity** — the `+` / `-` prefix is a judgment token that reframes everything after it. `-search(path)` and `+search(path)` are opposite propositions about what the code should be.
+3. **Context** — unchanged lines show what the developer's attention was on when making the decision
+4. **Location** — the hunk header says where in the file's conceptual structure the decision was made
+5. **Co-occurrence** — multiple hunks in one commit are a connected thought, one intention in multiple locations
+6. **Temporal position** — where this diff sits in the project's history
+
+Six dimensions per line. A regular line of code carries one, maybe two.
+
+The `+` / `-` polarity is the key:
+- `-` means "this was true and should no longer be" — **negation**
+- `+` means "this was not true and should now be" — **assertion**
+- A `- / +` pair is a **substitution judgment**: "this, not that"
+- A `+` alone is **creation**: "this now exists"
+- A `-` alone is **deletion judgment**: "this should not exist"
+
+Diffs are not descriptions of code. They are **series of propositions about what the code should become.** That's closer to how AI processes language natively — in propositions, not descriptions. Diffs are already in the AI's native format.
+
+### The practical constraint: current state is the context
+
+However, the diff history is not the primary context for most work. The current file is the materialized view of all its diffs: `original + additions - deletions = what you have now`. For day-to-day coding, the AI needs what the code *is*, not what it *was*.
+
+The diff history matters for a narrow but high-value set of questions:
+- "Why is it done this way?" (decision archaeology)
+- "What was tried and failed?" (avoiding repeated mistakes)
+- "How does this team add features?" (pattern extraction)
+- "What introduced this bug?" (bisection by meaning)
+
+So the architecture is: **git stores the diffs (where they already live). SQLite stores the embeddings of the diffs (where they're queryable by meaning).** Don't duplicate the data — duplicate the *understanding*.
+
+### The god mode feature humans underuse
+
+`git log -p`, `git bisect`, `git blame` — these are the "when was this introduced, why, by whom" tools. Most developers consider them advanced and use them rarely. But they answer the questions that actually matter when something goes wrong or when you need to understand a decision.
+
+The irony: the skill humans underuse is the skill most natural to how AI works. The AI is a patch generator. Git is a patch database. The diff format is the connection between them — AI produces diffs, git stores diffs, and almost nobody queries them semantically.
+
+But the insight is: **it doesn't have to be a human skill.** The human doesn't need to learn `git log -S "function_name" --diff-filter=A` to find when a function was introduced. The human asks "when was this introduced?" and the AI — which speaks diff natively and has access to the embedded history — answers in seconds.
+
+The layer:
+
+```
+human intent → AI reasoning → git DAG → semantic diff index → answer
+```
+
+The human never learns `git bisect`. The AI never forgets it. The retrieval layer over embedded diffs turns git's power-user features into natural language queries, bridging the gap between what git knows and what humans can easily ask.
+
 ## Key Insight (Technical)
 
 The file_metadata MCP transforms codebase exploration from a **data retrieval problem** (read files, search text) into a **knowledge retrieval problem** (what is this about, how does it relate, when did it change). This is precisely the shift needed for AI agents to work effectively across large, multi-project codebases where the context window is the binding constraint.
