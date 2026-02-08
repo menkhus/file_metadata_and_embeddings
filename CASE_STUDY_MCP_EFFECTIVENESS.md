@@ -212,6 +212,68 @@ A smarter model with no context about your work is less useful than a current mo
 
 This is the case for RAG as a first-class capability, not an afterthought. Not "search plus generation" — but a structured knowledge layer that makes the AI a genuine collaborator rather than a brilliant stranger.
 
+## The IBM XT Moment
+
+During the session, the user made an analogy that crystallizes where we are:
+
+> "Right now, this is the IBM XT of AI."
+
+### The hard drive, not the CPU
+
+The IBM XT didn't have the best processor. It had a hard drive. And the hard drive changed everything — not because it was fast, but because it meant your work **persisted**. Before the XT, you loaded from floppy every session. After it, the computer remembered you.
+
+That's exactly what happened here. Before the MCP, every Claude session starts from zero — load from floppy. After it, Claude remembers your projects, your patterns, your trajectory. The hard drive moment for AI isn't bigger context windows. It's **persistent, structured access to the user's world.**
+
+### The filesystem is scaffolding
+
+The user's intuition went further:
+
+> "The filesystem, all of this can be thrown away. The AI with a R/W RAG becomes the whole banana."
+
+The filesystem is optimized for humans navigating directories. But the AI doesn't need directories. It needs:
+
+- **Semantic addressing** — find by meaning, not by path
+- **Relationship awareness** — this file relates to that concept
+- **Temporal awareness** — this idea evolved from that one
+- **Relevance scoring** — this matters more than that, right now
+
+The MCP already does all four of these *on top of* the filesystem. The `.py` files on disk are the source of truth, but the AI never touches them directly — it works through the semantic layer. The filesystem is scaffolding. The index is the real storage layer from the AI's perspective.
+
+Imagine if the storage layer were native: SQL-backed, AI-optimized, with content, metadata, relationships, and embeddings as first-class concepts. Not files-with-an-index-bolted-on, but a knowledge store designed from the ground up for AI access. The filesystem becomes an implementation detail, like block storage under a database.
+
+### The product thesis: being known
+
+> "If I felt it, others will."
+
+The technical architecture — MCP, TF-IDF, FAISS, SQLite — is invisible to the user. What the user experiences is: **the AI knows me.** It knows my projects, my patterns, my history, my trajectory. It can connect what I wrote in September to what I'm asking in February.
+
+That feeling of being known is the product. Not search. Not embeddings. Not retrieval-augmented generation. Those are implementation details. The feature is: I sat down, asked a question, and the AI understood not just the question but *me*.
+
+This feeling is reproducible. Anyone with a body of work and a comprehensive index would get it. The requirements are:
+
+1. A corpus of the user's own work (code, writing, notes — whatever they produce)
+2. A comprehensive index with semantic and metadata dimensions
+3. An AI agent with access to the index
+4. A session starting from the root of the corpus
+
+That's it. No special model. No fine-tuning. No massive context window. A reasonable model with structured access to the user's world produces the experience of a brilliant collaborator who has been on your team for years.
+
+And once you've felt it, grep feels like going back to floppies.
+
+### Context as a managed service
+
+The next evolution is **adaptive context** — a read/write RAG where the orchestration layer learns from usage:
+
+- The user keeps asking about sprint evolution? Pre-load sprint-related files next session.
+- Working in `file_metadata_and_embeddings`? Surface related projects without being asked.
+- Three new files created today? Indexed before the next question.
+
+The context window becomes a managed service. The user shapes it by working. The orchestration layer shapes the AI's usefulness by becoming more relevant. A feedback loop between the human's work patterns and the AI's knowledge surface.
+
+A local model with 8B parameters and a 32K context window, backed by this orchestration layer, could do 80% of what happened in this session. The expensive part wasn't reasoning. The expensive part was the *right 12 queries returning the right fragments*. A smaller model with the same fragments would draw the same conclusions.
+
+**Orchestration beats intelligence. Context beats capability. Situatedness beats scale.**
+
 ## Key Insight (Technical)
 
 The file_metadata MCP transforms codebase exploration from a **data retrieval problem** (read files, search text) into a **knowledge retrieval problem** (what is this about, how does it relate, when did it change). This is precisely the shift needed for AI agents to work effectively across large, multi-project codebases where the context window is the binding constraint.
