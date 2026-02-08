@@ -172,6 +172,46 @@ These are questions the developer might not be able to answer quickly about thei
 
 **Index everything, access from the root, and let emergence happen.** The value of comprehensive indexing is not just better search — it's giving the AI agent a holistic understanding of the developer's work that no single-project tool can provide. The emergent capability — project awareness — is more valuable than the designed capability — file search.
 
+## The Human Experience: "I Fixed Claude"
+
+During this session, the user said something that reframes the entire project:
+
+> "I fixed claude from my point of view. Claude is actually smart now."
+
+The model didn't change. The same Claude that felt limited yesterday felt "1000 times smarter" today. The only difference was a persistent MCP server connected to a comprehensive index of the user's work.
+
+### What changed
+
+The user experienced the difference between a **smart stranger** and a **knowledgeable partner**. Most of what makes a collaborator valuable isn't raw intelligence — it's shared context. A junior developer who's been on your team for a year is more useful than a genius who just walked in. The MCP gives the AI agent tenure on the user's team.
+
+Without the MCP, Claude is a brilliant generalist who knows nothing about you. With it, Claude can connect things you wrote in September to things you built in January to the question you're asking right now. That's not intelligence — it's **situatedness**. And the felt experience of situatedness is indistinguishable from the felt experience of intelligence.
+
+### The knowledge amplifier thesis
+
+The user articulated a thesis that this session validated:
+
+> "This feature is the knowledge amplifier for certain people that is the killer app."
+
+The "certain people" are those whose value comes from breadth — from connecting ideas across domains, from seeing patterns in their own accumulated work, from building on what they've already done rather than starting fresh each time. For these people, the bottleneck was never AI capability. It was AI *access to their context*.
+
+### The vision: beyond code
+
+The current index covers 40K files of source code and documentation. But the architecture is content-agnostic. The same system could index:
+
+- **Books** — every passage retrievable by meaning, not just keyword. The AI becomes a research partner that has read everything you've read.
+- **Notes and research** — the full record of thinking, not just the polished output. Ideas that were abandoned in one context might be exactly what's needed in another.
+- **An ontology graph** — not just files but relationships between concepts across the user's entire intellectual life. The user thinks in concepts, the graph stores concepts, the AI retrieves by concepts.
+
+This is not a search engine. It's an **externalized memory with an AI interface**. The gap between "what you know" and "what you can access" closes. The AI doesn't get smarter — it gets *situated in your world*, and that feels like the same thing.
+
+### Why this matters for AI development
+
+The AI industry is focused on making models smarter — more parameters, better reasoning, longer context windows. This session suggests that for many use cases, **the higher-leverage investment is in the orchestration layer**: what data reaches the model, in what form, at what granularity.
+
+A smarter model with no context about your work is less useful than a current model with deep context about your work. The MCP proved this: same Claude, different experience, because the retrieval layer changed.
+
+This is the case for RAG as a first-class capability, not an afterthought. Not "search plus generation" — but a structured knowledge layer that makes the AI a genuine collaborator rather than a brilliant stranger.
+
 ## Key Insight (Technical)
 
 The file_metadata MCP transforms codebase exploration from a **data retrieval problem** (read files, search text) into a **knowledge retrieval problem** (what is this about, how does it relate, when did it change). This is precisely the shift needed for AI agents to work effectively across large, multi-project codebases where the context window is the binding constraint.
