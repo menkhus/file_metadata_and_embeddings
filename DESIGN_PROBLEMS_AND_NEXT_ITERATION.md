@@ -158,13 +158,86 @@ This connects back to the project's own thesis: orchestration over intelligence.
 
 ---
 
+## Future Direction: Index-on-Write and Per-Project Knowledge Layers
+
+### The architectural shift
+
+The freshness problem (Problem 3) assumes a traditional flow:
+
+```
+write file → file sits on disk → later, maybe, run indexer → index goes stale
+```
+
+The solution isn't better polling or smarter re-indexing schedules. It's inverting the flow:
+
+```
+write file → hook intercepts → index updated → embeddings updated → AI knows immediately
+```
+
+Don't poll for changes. React to them.
+
+### SQLite is the git of knowledge
+
+`.git` is a hidden directory that makes a project *versioned*. You don't think about it — you just expect `git log` to work. The same pattern applies to knowledge:
+
+A `.index` (or equivalent) SQLite database in every project, maintained automatically, makes the project *intelligent*. You don't think about it — you just expect the AI to know what's in the project.
+
+SQLite is purpose-built for this role:
+- Embedded, zero-config, no server process needed
+- FTS5 for full-text search built in
+- Handles concurrent reads from multiple AI agents
+- Single file, portable, lives alongside the code
+- Per-project isolation — each project carries its own knowledge layer
+
+A typical project's index would be 10-50MB — trivial compared to `node_modules` or a `.git` directory. Storage is free. Freshness is priceless.
+
+### Hook points
+
+The write-to-index pipeline can hook at multiple levels:
+
+| Hook point | Mechanism | Latency | Coverage |
+|---|---|---|---|
+| Claude Code hooks | Post-write hook triggers indexing | Instant | AI-written files |
+| Editor plugins | On-save triggers indexing | Instant | All edited files |
+| `git hooks` (post-commit) | Indexes changed files per commit | Per-commit | All committed changes |
+| `fswatch` / `watchman` | OS-level file system events | Near-instant | Everything |
+| CI/CD pipeline | Index as build step | Per-push | Shared/deployed code |
+
+The lightest viable approach: **Claude Code hooks + git post-commit**. This covers the two main write paths (AI writes, human commits) without requiring OS-level watchers.
+
+### Per-project index, federated queries
+
+If every project has its own SQLite index that's always current:
+
+- **No stale results, ever.** The trust problem disappears.
+- **No cold start.** The index is already there when the AI arrives.
+- **No central server needed.** Each project is self-aware.
+- **Freshness is guaranteed by construction**, not by maintenance.
+
+The top-of-tree experience (what we demonstrated in the 2026-02-07 session) becomes a federated query across per-project indexes. Each project maintains its own truth. The orchestration layer queries across all of them. Same architecture, but distributed and always fresh.
+
+### What this makes possible
+
+When every file write triggers indexing, the AI's knowledge is always current. The gap between "what's on disk" and "what the AI knows" drops to zero. This eliminates an entire class of problems:
+
+- No ghost results from deleted files
+- No stale snippets from modified files
+- No missing results from new files
+- No "did you re-index?" conversations
+
+The AI becomes a **live collaborator** rather than a **periodic snapshot reviewer**. And the user never has to think about indexing — it just happens, like git tracking changes, like SQLite persisting data.
+
+This is the answer to "I don't ever want to give this up." Make it unkillable by making it automatic.
+
+---
+
 ## Summary
 
 | Problem | Status | Severity |
 |---|---|---|
 | AI tool preference formation (last mile) | Validated — works when tool is responsive and results are rich | Solved in practice, needs design principles documented |
 | Cold start latency | Solved — persistent server | Solved |
-| Index freshness/lifecycle | Unsolved — running on stale snapshots | High — erodes trust as usage increases |
+| Index freshness/lifecycle | Architectural direction identified — index-on-write with per-project SQLite | High — erodes trust as usage increases |
 | Multi-AI coordination | Unsolved — human is integration layer | Medium — manageable at current scale |
 
-The immediate priority is **index freshness**. The tool's effectiveness creates demand for reliability, and reliability requires freshness. Everything else is downstream of that.
+The immediate priority is **index freshness**, and the architectural answer is **index-on-write**: hook file writes, update the index immediately, and make freshness a property of the system rather than a maintenance task. SQLite per project, federated at the root. The git of knowledge.
