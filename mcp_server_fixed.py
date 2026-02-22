@@ -433,9 +433,9 @@ class FileMetadataDB:
 # Initialize database interface
 try:
     db = FileMetadataDB(DB_PATH)
-    print(f"✓ File metadata MCP server ready - Database: {DB_PATH}", flush=True)
+    print(f"✓ File metadata MCP server ready - Database: {DB_PATH}", flush=True, file=sys.stderr)
 except FileNotFoundError as e:
-    print(f"Error: {e}", flush=True)
+    print(f"Error: {e}", flush=True, file=sys.stderr)
     exit(1)
 
 # Initialize autograph manager for knowledge graph
@@ -445,9 +445,9 @@ if AUTOGRAPH_AVAILABLE:
         # Create knowledge_graph directory if it doesn't exist
         os.makedirs(KG_PATH, exist_ok=True)
         autograph_mgr = AutographManager(KG_PATH)
-        print(f"✓ Autograph knowledge graph ready - Path: {KG_PATH}", flush=True)
+        print(f"✓ Autograph knowledge graph ready - Path: {KG_PATH}", flush=True, file=sys.stderr)
     except Exception as e:
-        print(f"Warning: Could not initialize autograph manager: {e}", flush=True)
+        print(f"Warning: Could not initialize autograph manager: {e}", flush=True, file=sys.stderr)
 
 # Create MCP server
 server = Server("file-metadata-mcp")
