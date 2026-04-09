@@ -267,6 +267,145 @@ by KG edges that surface automatically in the next prompt.
 
 ---
 
+## Enhancement 3: Database as Truth — File as Optional Rendering
+
+### The core shift
+
+The file model is document-based thinking: generate a file, AI reads
+the file. `prior_art_notes.md` was a useful convenience for Claude's
+file-reading habit. It is not the architecture.
+
+The database model is different:
+
+```
+work happens
+    ↓
+keywords extracted, edges computed, nodes written — all to DB
+    ↓
+next session: hook queries DB directly
+    ↓
+AI receives computed context — not a file, a query result
+```
+
+Nothing needs to exist as a file. The DB is the truth. The file is
+a rendering — generate it at session start if needed, discard it
+when done. Or skip it entirely and inject directly via the hook.
+
+```python
+# hook queries DB, returns computed context
+context = kg.query(keywords=session_keywords, top_k=10)
+# optional: write ephemeral prior_art_notes.md for this session
+# or: inject directly as system context
+# either works — the DB doesn't care
+```
+
+### The schema
+
+SQLite — same backend already used by this project.
+
+```sql
+-- every session that ran
+CREATE TABLE sessions (
+    id          TEXT PRIMARY KEY,  -- SHA256 of cwd+timestamp
+    cwd         TEXT,
+    project     TEXT,
+    started_at  TEXT,
+    keywords    TEXT               -- JSON array, extracted post-session
+);
+
+-- every node: internal or external
+CREATE TABLE nodes (
+    id          TEXT PRIMARY KEY,
+    type        TEXT,  -- project | session | paper | concept | person
+    label       TEXT,
+    source      TEXT,  -- file path, arXiv URL, or 'unpublished'
+    first_seen  TEXT,
+    last_seen   TEXT,
+    metadata    TEXT   -- JSON
+);
+
+-- relationships with provenance
+CREATE TABLE edges (
+    from_id     TEXT,
+    to_id       TEXT,
+    relation    TEXT,  -- matched | cited | evolved_from | session_referenced
+    score       REAL,
+    created_at  TEXT,
+    session_id  TEXT   -- which session created this edge
+);
+
+-- signal detection: external matches over time
+CREATE TABLE signals (
+    keyword     TEXT,
+    source_url  TEXT,
+    title       TEXT,
+    detected_at TEXT,
+    is_new      INTEGER  -- 1 if first time seen — this IS the signal
+);
+
+-- FTS over everything
+CREATE VIRTUAL TABLE nodes_fts USING fts5(label, source, metadata);
+```
+
+### What the DB answers that a file never could
+
+```sql
+-- what ideas have I worked on that nobody is publishing about?
+SELECT n.label FROM nodes n
+LEFT JOIN signals s ON s.keyword LIKE '%' || n.label || '%'
+WHERE s.keyword IS NULL AND n.type = 'concept';
+
+-- what ideas are heating up externally that match my work?
+SELECT keyword, COUNT(*) as hits, MAX(detected_at) as latest
+FROM signals WHERE is_new = 1
+GROUP BY keyword ORDER BY hits DESC;
+
+-- which sessions connected to this project?
+SELECT s.cwd, s.started_at FROM sessions s
+JOIN edges e ON e.session_id = s.id
+WHERE e.to_id = 'project:universal_ai_shell_history';
+```
+
+Milliseconds. No file scan. No AI call.
+
+### Local AI as the rendering layer
+
+When a file IS needed — for Claude to read, for a human to review —
+local AI generates it from the DB query result:
+
+```
+DB query → raw KG matches (JSON)
+    ↓
+phi4 via aifilter — behavior: "summarize_prior_art"
+    ↓
+clean prior_art_notes.md — terse, file paths, one-liners
+    ↓
+written to cwd — ephemeral, session-scoped
+    ↓
+discarded or committed, depending on value
+```
+
+Single shot. Local model. Zero cloud cost. The file is a view over
+the DB, not the source of truth.
+
+### The PIM distinction
+
+Most PIMs store documents. You open them to add things. This stores
+*relationships between moments of work*. You never open it to add
+something — the sessions write to it automatically. You open it to
+query what the work already knows.
+
+The data does not exist as files. It is computed and stored. The
+computation happens at session boundaries. The storage is permanent
+and queryable. The rendering is on-demand and ephemeral.
+
+This is closer to a research journal that indexes itself than to a
+note-taking app. The scaffolding generalizes to any knowledge domain
+that produces text and has a quality signal: code, writing, research,
+reading. Same schema, same hook, same signal detection.
+
+---
+
 ## Implementation order
 
 1. `autoground_query.py` — KG query given keyword list (core primitive)
