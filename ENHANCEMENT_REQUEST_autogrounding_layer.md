@@ -406,6 +406,109 @@ reading. Same schema, same hook, same signal detection.
 
 ---
 
+## Enhancement 4: One Database, All the Feeds
+
+### The vision
+
+This is not a new database. It is an aggregation of feeds that
+already exist, reusing the same schema, connected by the same
+query layer.
+
+Every tool in the knowledge stack produces the same kind of thing:
+nodes with keywords, edges with provenance, timestamps. They all
+overlap. The DB is where the overlap becomes useful.
+
+```
+Feed              What it contributes         Node type
+─────────────────────────────────────────────────────────
+ghost             archived files, projects    project | file
+file_metadata     40K+ indexed files,         file | concept
+                  TF-IDF, LDA, FAISS
+session KG        moments of work,            session | concept
+                  tool call sequences
+uaish             AI session history,         session | prompt
+                  Claude + Gemini + Ollama
+signals           arXiv, Semantic Scholar     paper | concept
+aifilter          behavior invocations,       skill | session
+                  pass/fail outcomes
+```
+
+Same schema. Same keyword extraction. Same edge structure.
+All queryable together.
+
+### Ghost as a feed
+
+Ghost already does the hard part — archives files, extracts semantic
+content via TF-IDF + LSA (ghost diff). PRELOAD.md per project is
+already a manually-written rendering of project state.
+
+In the DB model:
+- Ghost archive → nodes written to DB on archive
+- Ghost diff → edge with semantic distance score between versions
+- Ghost search → KG query (same index, better joins)
+- PRELOAD.md → rendered on demand from DB, not hand-maintained
+
+Cross-project connections emerge automatically. Two projects that
+ghost manages separately, with overlapping keyword clusters, get
+an edge. You don't create it. The keyword match creates it.
+
+### Self-labeling is the key property
+
+Every PIM that becomes noise does so because the user must decide
+where things go. Taxonomy imposed from outside the content always
+decays — life moves faster than filing.
+
+This system never asks. Labels emerge from the content:
+- Keywords from TF-IDF and LDA (already computed)
+- Edges from keyword overlap (computed at write time)
+- Signal from new external matches (computed on schedule)
+
+You cannot mis-file something because you never file anything.
+The organization is emergent from the work, not imposed on it.
+The DB grows from the work. The work does not grow from the DB.
+
+### The aggregation query
+
+The value is in the joins no single tool can make:
+
+```sql
+-- what concept connects my ghost-archived writing project
+-- to an arXiv paper published this month?
+SELECT n1.label, e.relation, n2.label, s.detected_at
+FROM nodes n1
+JOIN edges e ON e.from_id = n1.id
+JOIN nodes n2 ON n2.id = e.to_id
+JOIN signals s ON s.keyword LIKE '%' || n2.label || '%'
+WHERE n1.source LIKE '%the-mathematician%'
+AND s.is_new = 1;
+
+-- what skills (aifilter behaviors) have I used in sessions
+-- that touched this project?
+SELECT DISTINCT e2.from_id as skill
+FROM edges e1
+JOIN edges e2 ON e2.to_id = e1.session_id
+WHERE e1.to_id = 'project:universal_ai_shell_history'
+AND e2.relation = 'skill_used';
+```
+
+No single tool answers these. The DB answers both in milliseconds.
+
+### What this is
+
+Not a sock drawer. Not a note-taking app. Not a PIM in the
+conventional sense.
+
+A **personal knowledge substrate** — computed from work, not
+curated from intention. Self-labeling. Self-connecting. Queryable
+at any time. Renderable on demand via local AI. Growing from every
+session without maintenance.
+
+The ghost tooling, file_metadata, uaish, aifilter, and the session
+KG are all feeds into the same substrate. They were always overlapping.
+The DB is where the overlap becomes a capability instead of redundancy.
+
+---
+
 ## Implementation order
 
 1. `autoground_query.py` — KG query given keyword list (core primitive)
