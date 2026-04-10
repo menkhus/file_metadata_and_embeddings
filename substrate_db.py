@@ -22,46 +22,111 @@ from typing import Optional
 
 DEFAULT_DB = Path.home() / "data" / "substrate.sqlite3"
 
+# Bump this when any table is added, removed, or altered.
+# _upsert_readme() inserts a new versioned row on every schema init,
+# so the full change history is preserved in the readme table.
+SCHEMA_VERSION = 2
+
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS sessions (
-    id          TEXT PRIMARY KEY,   -- SHA256 of cwd+started_at
-    cwd         TEXT,
-    project     TEXT,               -- basename of cwd
-    started_at  TEXT,               -- ISO8601
-    ended_at    TEXT,
-    keywords    TEXT                -- JSON array, extracted post-session
+-- ─────────────────────────────────────────────────────────────────────────────
+-- substrate.sqlite3  —  personal knowledge substrate
+-- ─────────────────────────────────────────────────────────────────────────────
+-- This database is the grounding and memory layer for AI sessions.
+-- It stores session fingerprints, project/file knowledge graph nodes,
+-- cross-session edges, and keyword signal detections.
+--
+-- It is NOT the file index (that is ~/data/file_metadata.sqlite3).
+-- It IS the layer that connects sessions to prior work.
+--
+-- Schema managed by: substrate_db.py (SubstrateDB._init_schema)
+-- Default path:      ~/data/substrate.sqlite3
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- readme
+--   Self-documentation table.  One row per schema version.  The highest
+--   version row is current; older rows are history.
+--   Created by:  substrate_db.py (_init_schema → _upsert_readme)
+--   Updated by:  substrate_db.py on every init when SCHEMA_VERSION increases
+CREATE TABLE IF NOT EXISTS readme (
+    version     INTEGER PRIMARY KEY,  -- matches SCHEMA_VERSION constant
+    updated_at  TEXT,                 -- ISO8601, set at init time
+    content     TEXT                  -- full human-readable schema description
 );
 
+-- sessions
+--   One row per AI session (claude, ollama, gemini, etc.).
+--   Records the working directory, start/end timestamps, and the keyword
+--   fingerprint extracted at session end by the LLM (gemma3/phi4).
+--   Created by:  substrate_db.py (this schema)
+--   Written by:  session_end.py  (upsert_session, called from _logged_ai shell wrapper)
+--   Read by:     prompt-ground.py (recent_sessions → session chain injection)
+CREATE TABLE IF NOT EXISTS sessions (
+    id          TEXT PRIMARY KEY,   -- SHA256 of cwd+started_at
+    cwd         TEXT,               -- absolute working directory of the session
+    project     TEXT,               -- basename of cwd
+    started_at  TEXT,               -- ISO8601
+    ended_at    TEXT,               -- ISO8601
+    keywords    TEXT                -- JSON array of keywords extracted post-session
+);
+
+-- nodes
+--   Knowledge graph nodes — projects, files, sessions, papers, concepts, skills.
+--   FTS-queryable via nodes_fts virtual table (kept in sync by triggers below).
+--   type values: project | session | file | paper | concept | skill
+--   Created by:  substrate_db.py (this schema)
+--   Written by:  extract_idea_signatures.py  (project + file nodes, batch ingest)
+--                session_end.py              (session nodes, one per session)
+--   Read by:     autoground_query.py         (query_by_keywords → prompt grounding)
+--                prompt-ground.py            (UserPromptSubmit hook)
+--                autoground.py               (Stop hook)
 CREATE TABLE IF NOT EXISTS nodes (
     id          TEXT PRIMARY KEY,   -- SHA256 of type+source
     type        TEXT,               -- project | session | file | paper | concept | skill
-    label       TEXT,
+    label       TEXT,               -- human-readable display name
     source      TEXT,               -- file path, arXiv URL, or 'unpublished'
     first_seen  TEXT,               -- ISO8601
-    last_seen   TEXT,
-    metadata    TEXT                -- JSON
+    last_seen   TEXT,               -- ISO8601, updated on every upsert
+    metadata    TEXT                -- JSON: keywords, project, cwd, app, etc.
 );
 
+-- edges
+--   Directed relationships between nodes.
+--   relation values: matched | cited | evolved_from | session_referenced | skill_used
+--   Created by:  substrate_db.py (this schema)
+--   Written by:  (not yet wired — 0 rows as of schema v2)
+--   Intended for: linking session nodes to the file/project nodes they referenced
 CREATE TABLE IF NOT EXISTS edges (
     from_id     TEXT,
     to_id       TEXT,
     relation    TEXT,               -- matched | cited | evolved_from | session_referenced | skill_used
-    score       REAL,
-    created_at  TEXT,
+    score       REAL,               -- confidence or strength of relation
+    created_at  TEXT,               -- ISO8601
     session_id  TEXT,               -- which session created this edge
     PRIMARY KEY (from_id, to_id, relation)
 );
 
+-- signals
+--   Novel keyword detections from external sources (arXiv, blogs, etc.).
+--   is_new=1 means first time this keyword+source_url pair was seen.
+--   The is_new flag IS the signal — it resets to 0 after acknowledgement.
+--   Created by:  substrate_db.py (this schema)
+--   Written by:  (not yet wired — 0 rows as of schema v2)
 CREATE TABLE IF NOT EXISTS signals (
     id          TEXT PRIMARY KEY,   -- SHA256 of keyword+source_url
     keyword     TEXT,
     source_url  TEXT,
     title       TEXT,
     abstract    TEXT,
-    detected_at TEXT,
+    detected_at TEXT,               -- ISO8601
     is_new      INTEGER DEFAULT 1   -- 1 if first time seen — this IS the signal
 );
 
+-- nodes_fts
+--   FTS5 virtual table mirroring nodes for keyword search.
+--   Kept in sync with nodes via INSERT/UPDATE/DELETE triggers below.
+--   Never written directly — always via trigger.
+--   Created by:  substrate_db.py (this schema)
+--   Read by:     autoground_query.py (query_by_keywords, MATCH queries)
 CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts
     USING fts5(id UNINDEXED, label, source, metadata, content='nodes', content_rowid='rowid');
 
@@ -82,6 +147,67 @@ CREATE TRIGGER IF NOT EXISTS nodes_fts_delete AFTER DELETE ON nodes BEGIN
     VALUES ('delete', old.rowid, old.id, old.label, old.source, old.metadata);
 END;
 """
+
+# Human-readable content written into the readme table at SCHEMA_VERSION.
+# Update this block whenever SCHEMA_VERSION is bumped.
+_README_VERSIONS = {
+    1: """\
+substrate.sqlite3 — personal knowledge substrate
+=================================================
+Schema version 1 (initial)
+
+Tables: sessions, nodes, edges, signals, nodes_fts
+""",
+    2: """\
+substrate.sqlite3 — personal knowledge substrate
+=================================================
+Schema version 2 — added readme table for self-documentation
+
+RELATED DATABASES
+-----------------
+~/data/file_metadata.sqlite3
+    40K+ indexed files, TF-IDF keywords, FAISS embeddings, FTS5 full-text.
+    Managed by: file_metadata_content.py (indexing), build_faiss_index.py (FAISS),
+                mcp_server_fixed.py (MCP read layer).
+    Read by extract_idea_signatures.py to populate nodes in this database.
+
+~/data/substrate.sqlite3  (this file)
+    Session memory, knowledge graph, grounding layer.
+    Managed by: substrate_db.py
+
+TABLE REGISTRY
+--------------
+readme          Versioned self-documentation. One row per schema version.
+                Created/updated by: substrate_db.py (_upsert_readme)
+
+sessions        One row per AI session (claude, ollama, gemini, etc.).
+                Keyword fingerprint extracted at session end.
+                Written by: session_end.py
+                Read by:    prompt-ground.py (session chain injection)
+
+nodes           Knowledge graph nodes: project | session | file | paper | concept | skill
+                Written by: extract_idea_signatures.py (project/file nodes)
+                            session_end.py (session nodes)
+                Read by:    autoground_query.py, prompt-ground.py, autoground.py
+
+nodes_fts       FTS5 virtual table. Mirrors nodes. Maintained by triggers.
+                Never written directly.
+                Read by:    autoground_query.py (MATCH queries)
+
+edges           Directed relationships between nodes.
+                relation: matched | cited | evolved_from | session_referenced | skill_used
+                Written by: (not yet wired — 0 rows)
+
+signals         Novel keyword detections from external sources.
+                is_new flag resets to 0 after acknowledgement.
+                Written by: (not yet wired — 0 rows)
+
+SCHEMA VERSION HISTORY
+----------------------
+v1  Initial schema: sessions, nodes, edges, signals, nodes_fts
+v2  Added readme table; strengthened -- comments on all CREATE TABLE statements
+""",
+}
 
 
 def _make_id(*parts: str) -> str:
@@ -110,6 +236,16 @@ class SubstrateDB:
     def _init_schema(self):
         with self.connect() as conn:
             conn.executescript(SCHEMA)
+        self._upsert_readme()
+
+    def _upsert_readme(self):
+        """Insert a readme row for SCHEMA_VERSION if one doesn't exist yet."""
+        content = _README_VERSIONS.get(SCHEMA_VERSION, f"Schema version {SCHEMA_VERSION}")
+        with self.connect() as conn:
+            conn.execute("""
+                INSERT OR IGNORE INTO readme (version, updated_at, content)
+                VALUES (?, ?, ?)
+            """, (SCHEMA_VERSION, _now(), content))
 
     # --- sessions ---
 

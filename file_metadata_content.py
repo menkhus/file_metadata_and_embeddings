@@ -15,6 +15,87 @@ Requirements:
 pip install numpy scikit-learn sentence-transformers tqdm setproctitle
 """
 
+# Bump when any table is added, removed, or altered.
+# _upsert_readme() inserts a new versioned row on every DatabaseManager init,
+# preserving the full change history in the readme table.
+FILE_METADATA_SCHEMA_VERSION = 1
+
+_FILE_METADATA_README = {
+    1: """\
+file_metadata.sqlite3 — file index and content analysis database
+================================================================
+Schema version 1
+
+This database is the primary file index for the file_metadata_and_embeddings
+project. It stores metadata, content analysis, text chunks, embeddings, and
+full-text search for 40K+ files across the local filesystem.
+
+It is NOT the session/grounding layer (that is ~/data/substrate.sqlite3).
+It IS the corpus that extract_idea_signatures.py reads to populate substrate.
+
+DEFAULT PATH
+------------
+~/data/file_metadata.sqlite3
+Overridable via FILE_METADATA_DB environment variable (mcp_server_fixed.py).
+
+TABLE REGISTRY
+--------------
+readme              Versioned self-documentation. One row per schema version.
+                    Created/updated by: file_metadata_content.py
+                                        (DatabaseManager._upsert_readme)
+
+file_metadata       One row per indexed file. Primary key is file_path.
+                    Stores path, size, type, hash, dates, permissions,
+                    processing status.
+                    Created by: file_metadata_content.py (DatabaseManager.init_database)
+                    Written by: file_metadata_content.py (DatabaseManager.insert_file_metadata)
+                    Read by:    mcp_server_fixed.py (search_files, get_file_info)
+
+directory_structure One row per directory seen during indexing.
+                    Tracks file count and total size per directory.
+                    Created by: file_metadata_content.py (DatabaseManager.init_database)
+                    Written by: file_metadata_content.py (FileMetadataExtractor)
+
+content_analysis    One row per indexed text file. Stores word count, TF-IDF
+                    keywords, language, processing timing.
+                    Created by: file_metadata_content.py (DatabaseManager.init_database)
+                    Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
+                    Read by:    mcp_server_fixed.py (search_by_keywords, get_file_info)
+                                extract_idea_signatures.py (project keyword aggregation)
+
+text_chunks         One row per text chunk per file. Chunked content used for
+                    embedding and FTS. Chunk size determined by TextProcessor.
+                    Created by: file_metadata_content.py (DatabaseManager.init_database)
+                    Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
+                    Read by:    build_faiss_index.py (builds FAISS index from chunks)
+                                mcp_server_fixed.py (get_file_chunks, full_text_search)
+
+embeddings_index    One row per chunk. Stores embedding vectors as JSON arrays
+                    for FAISS index construction.
+                    Created by: file_metadata_content.py (DatabaseManager.init_database)
+                    Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
+                    Read by:    build_faiss_index.py (loads vectors into FAISS)
+                                mcp_server_fixed.py (semantic_search)
+
+content_fts         FTS5 virtual table over text chunks for full-text search.
+                    Never written directly — populated via INSERT INTO content_fts.
+                    Created by: file_metadata_content.py (DatabaseManager.init_database)
+                    Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
+                    Read by:    mcp_server_fixed.py (full_text_search)
+
+processing_stats    One row per indexing run session. Tracks file counts by
+                    outcome (success, error types), timing, and interruption state.
+                    Created by: file_metadata_content.py (DatabaseManager.init_database)
+                    Written by: file_metadata_content.py (FileMetadataExtractor)
+                    Read by:    mcp_server_fixed.py (get_stats)
+
+SCHEMA VERSION HISTORY
+----------------------
+v1  Initial schema: file_metadata, directory_structure, content_analysis,
+    text_chunks, embeddings_index, content_fts, processing_stats, readme
+""",
+}
+
 import os
 import sqlite3
 import hashlib
@@ -803,10 +884,24 @@ class DatabaseManager:
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
-                # File metadata table (file_path as primary key, overwrite on conflict)
+
+                # readme — versioned self-documentation, one row per schema version
+                # Created by: file_metadata_content.py (DatabaseManager.init_database / _upsert_readme)
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS readme (
+                        version     INTEGER PRIMARY KEY,  -- matches FILE_METADATA_SCHEMA_VERSION
+                        updated_at  TEXT,                 -- ISO8601
+                        content     TEXT                  -- full human-readable schema description
+                    )
+                ''')
+
+                # file_metadata — one row per indexed file, file_path is primary key
+                # Created by: file_metadata_content.py (DatabaseManager.init_database)
+                # Written by: file_metadata_content.py (DatabaseManager.insert_file_metadata)
+                # Read by:    mcp_server_fixed.py (search_files, get_file_info)
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS file_metadata (
-                        file_path TEXT PRIMARY KEY,
+                        file_path TEXT PRIMARY KEY,       -- absolute path
                         file_name TEXT NOT NULL,
                         directory TEXT NOT NULL,
                         file_size INTEGER NOT NULL,
@@ -824,8 +919,10 @@ class DatabaseManager:
                         indexed_date TEXT DEFAULT CURRENT_TIMESTAMP
                     )
                 ''')
-                # ...existing code...
-                # Directory structure table
+
+                # directory_structure — one row per directory seen during indexing
+                # Created by: file_metadata_content.py (DatabaseManager.init_database)
+                # Written by: file_metadata_content.py (FileMetadataExtractor)
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS directory_structure (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -836,8 +933,12 @@ class DatabaseManager:
                         last_updated TEXT DEFAULT CURRENT_TIMESTAMP
                     )
                 ''')
-                
-                # Content analysis table (add processing_time_seconds for per-file timing)
+
+                # content_analysis — TF-IDF keywords, word/char counts, language per file
+                # Created by: file_metadata_content.py (DatabaseManager.init_database)
+                # Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
+                # Read by:    mcp_server_fixed.py (search_by_keywords, get_file_info)
+                #             extract_idea_signatures.py (project keyword aggregation → substrate.sqlite3)
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS content_analysis (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -846,7 +947,7 @@ class DatabaseManager:
                         word_count INTEGER,
                         char_count INTEGER,
                         language TEXT,
-                        tfidf_keywords TEXT,  -- JSON array
+                        tfidf_keywords TEXT,              -- JSON array of [keyword, score] pairs
                         processing_status TEXT DEFAULT 'success',
                         error_message TEXT,
                         analysis_date TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -854,31 +955,43 @@ class DatabaseManager:
                         FOREIGN KEY (file_path) REFERENCES file_metadata (file_path)
                     )
                 ''')
-                
-                # Text chunks table
+
+                # text_chunks — chunked content for embedding and FTS
+                # Created by: file_metadata_content.py (DatabaseManager.init_database)
+                # Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
+                # Read by:    build_faiss_index.py (loads chunks to build FAISS index)
+                #             mcp_server_fixed.py (get_file_chunks, full_text_search)
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS text_chunks (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         file_path TEXT NOT NULL,
                         chunk_index INTEGER NOT NULL,
                         chunk_text TEXT NOT NULL,
-                        chunk_embedding BLOB,  -- Store as binary
+                        chunk_embedding BLOB,             -- binary embedding (legacy; prefer embeddings_index)
                         FOREIGN KEY (file_path) REFERENCES file_metadata (file_path)
                     )
                 ''')
-                
-                # Embeddings index table for FAISS (self-documenting, stores chunk embeddings as JSON arrays)
+
+                # embeddings_index — chunk embedding vectors as JSON arrays for FAISS
+                # Created by: file_metadata_content.py (DatabaseManager.init_database)
+                # Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
+                # Read by:    build_faiss_index.py (loads vectors into FAISS flat index)
+                #             mcp_server_fixed.py (semantic_search)
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS embeddings_index (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         file_path TEXT NOT NULL,
                         chunk_index INTEGER NOT NULL,
-                        embedding TEXT NOT NULL, -- JSON array of floats
+                        embedding TEXT NOT NULL,           -- JSON array of floats
                         metadata TEXT,
                         FOREIGN KEY (file_path) REFERENCES file_metadata (file_path)
                     )
                 ''')
-                # Processing statistics table (add missing columns for full status reporting)
+
+                # processing_stats — one row per indexing run, tracks outcomes and timing
+                # Created by: file_metadata_content.py (DatabaseManager.init_database)
+                # Written by: file_metadata_content.py (FileMetadataExtractor)
+                # Read by:    mcp_server_fixed.py (get_stats)
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS processing_stats (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -921,7 +1034,11 @@ class DatabaseManager:
                 cursor.execute('CREATE INDEX IF NOT EXISTS idx_content_file_path ON content_analysis(file_path)')
                 cursor.execute('CREATE INDEX IF NOT EXISTS idx_chunks_file_path ON text_chunks(file_path)')
                 
-                # Enable FTS for full-text search
+                # content_fts — FTS5 virtual table over text chunks for full-text search
+                # Never written directly; populated via INSERT INTO content_fts in insert_content_analysis.
+                # Created by: file_metadata_content.py (DatabaseManager.init_database)
+                # Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
+                # Read by:    mcp_server_fixed.py (full_text_search)
                 cursor.execute('''
                     CREATE VIRTUAL TABLE IF NOT EXISTS content_fts USING fts5(
                         file_path,
@@ -947,9 +1064,28 @@ class DatabaseManager:
 
                 conn.commit()
                 logger.info("Database initialized successfully")
+
+            self._upsert_readme()
+
         except Exception as e:
             logger.error(f"Database initialization failed: {e}")
             raise
+
+    def _upsert_readme(self):
+        """Insert a readme row for FILE_METADATA_SCHEMA_VERSION if one doesn't exist yet."""
+        content = _FILE_METADATA_README.get(
+            FILE_METADATA_SCHEMA_VERSION,
+            f"Schema version {FILE_METADATA_SCHEMA_VERSION}"
+        )
+        now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        def _op():
+            with self.get_connection() as conn:
+                conn.execute(
+                    "INSERT OR IGNORE INTO readme (version, updated_at, content) VALUES (?, ?, ?)",
+                    (FILE_METADATA_SCHEMA_VERSION, now, content)
+                )
+                conn.commit()
+        self.execute_with_retry(_op)
     
     def insert_file_metadata(self, metadata: FileMetadata):
         """Insert file metadata into database with retry logic"""
