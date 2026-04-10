@@ -30,6 +30,25 @@ The intelligence was always there. The grounding made it visible.
 
 That experience is the starting point for this paper.
 
+The mechanism, it turns out, is simple. It is slipping a note under
+the office door before the next person arrives.
+
+The session ends. A hook fires. The system writes what it knows —
+prior projects that connect, ideas that surfaced, literature that
+matches — to a file in the project directory. The next session opens.
+The note is there. The AI reads it. The AI is grounded.
+
+No handshake. No vendor cooperation. No protocol. No API that can
+break. A file in a directory — the oldest, most durable interface
+in computing. Any model that reads files picks it up. All of them do.
+
+The note is not a summary. It is a provenance trail: specific projects,
+specific sessions, specific ideas that connected, with dates and sources.
+Computed from instrumented session history. Written by local AI in one
+shot. Read by the next session as ordinary project context.
+
+Vendor memory systems require the vendor. This requires a directory.
+
 ---
 
 ## Abstract
