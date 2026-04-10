@@ -6,6 +6,18 @@
 
 ---
 
+## NOW — Minimum Viable Grounding (do these five, in order)
+
+- [ ] 1. `substrate_db.py` — schema + connection manager
+- [ ] 2. `autoground_query.py` — core query primitive (keywords in, matching nodes out)
+- [ ] 3. `summarize_prior_art.txt` — aifilter behavior file (renders DB results as terse notes)
+- [ ] 4. `autoground.py` — Stop hook script (queries DB, calls phi4, writes prior_art_notes.md)
+- [ ] 5. Wire Stop hook in `~/.claude/settings.json`
+
+After these five: every session ends by writing prior_art_notes.md. The loop is running.
+
+---
+
 ## Track 1 — Core DB Infrastructure
 
 - [ ] Design final schema — sessions, nodes, edges, signals, nodes_fts
