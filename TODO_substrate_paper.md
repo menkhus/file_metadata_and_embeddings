@@ -20,7 +20,23 @@
 
 ---
 
-## Track 2 — Autogrounding Hook
+## Track 2 — Prompt Micro-Processing Behaviors
+
+- [ ] `keyword_extract.txt` — behavior: extract intent keywords from short prompt
+      phi4, single shot, returns noun/verb keyword list, no LDA needed
+- [ ] `ground_prompt.txt` — behavior: receive prompt + DB context nodes,
+      prepend prior work as structured grounding context
+- [ ] `clean_and_tighten.txt` — behavior: fix spelling, grammar, tighten intent
+      absorbs spell-check — phi4 does it better in one pass than aspell separately
+- [ ] `summarize_prior_art.txt` — behavior: render DB query results as terse
+      prior_art_notes.md — file paths, one-liners, max 20 lines
+- [ ] Test pipe: `echo "prompt" | aifilter -b keyword_extract | autoground_query
+      | aifilter -b ground_prompt | aifilter -b clean_and_tighten`
+- [ ] Verify: raw prompt in → clean grounded prompt out
+
+---
+
+## Track 3 — Autogrounding Hook
 
 - [ ] `autoground_query.py` — given keyword list, query DB, return top-N nodes
       (this is the core primitive everything else uses)

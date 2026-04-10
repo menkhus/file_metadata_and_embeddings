@@ -98,44 +98,78 @@ model-independent, survives tool changes. That choice is still correct.
 
 ---
 
-## Enhancement 2: Autogrounding Hook — Intercept, Clean, Ground
+## Enhancement 2: Prompt Micro-Processing Pipeline
 
-### The idea
+### The framing shift
 
-Intercept every prompt before it reaches an AI, run three operations
-deterministically, inject the result back into the prompt:
+This is micro-processing, not macro-scope processing.
+
+The industry default is macro: give the LLM everything, big context,
+big model, let it resolve ambiguity. Expensive, opaque, not reproducible.
+
+This is micro: process the smallest meaningful unit — the prompt —
+precisely, before it goes anywhere. The prompt is an artifact, same
+as any other. The funcspec gets processed before going to the AI. The
+prompt gets the same treatment.
+
+The raw prompt is noise. The processed prompt is signal.
+
+### The pipeline — aifilter behaviors
+
+The preprocessing pipeline is three aifilter behaviors in a pipe.
+No new infrastructure. aifilter already exists. Behaviors are plain
+text files. Each call is local, single shot, zero cloud cost.
+
+```sh
+echo "$prompt"                    \
+  | aifilter -b keyword_extract   \
+  | autoground_query              \
+  | aifilter -b ground_prompt     \
+  | aifilter -b clean_and_tighten \
+  > enhanced_prompt.txt
+```
+
+**`keyword_extract`** — extract nouns and verbs from the prompt.
+Not LDA — the prompt is too short for LDA to bootstrap. phi4 reads
+the prompt and returns the intent keywords. Single shot. Fast.
+
+**`autoground_query`** — deterministic DB query (not an AI call).
+Takes the keywords, queries the substrate DB, returns matching nodes
+as structured context. The one non-aifilter step — pure Python,
+milliseconds.
+
+**`ground_prompt`** — aifilter behavior. Receives original prompt +
+DB query results. Prepends relevant prior work as grounding context.
+Structured output: `[Prior work: ...]\n\n[Original prompt]`.
+
+**`clean_and_tighten`** — aifilter behavior. Absorbs spell-check,
+grammar fix, and intent clarification in one shot. phi4 cleans
+"we was kind of thinking maybe" → "we want to". Fixes typos.
+Tightens ambiguous intent. Preserves meaning. Single shot.
+
+Two behaviors collapse into one because phi4 handles both cleaning
+and tightening simultaneously — running aspell separately is
+redundant when a local model does it better in the same pass.
+
+### The result
 
 ```
-user types prompt
-      ↓
-[HOOK FIRES]
-      ↓
-1. spell-check        — aspell/hunspell, deterministic, fast
-2. keyword extract    — TF-IDF on prompt text, no AI cost
-3. KG query           — find matching internal + external nodes
-      ↓
-enhanced prompt = corrected text + KG context preamble
-      ↓
-AI receives enhanced prompt
-      ↓
-response + grounding decision logged back to KG
+raw prompt     "how do we ad the kG notes into the sesions so
+                it carys the work forward?"
+
+processed      [Prior work: substrate DB (file_metadata_and_embeddings),
+                session KG (universal_ai_shell_history), autogrounding
+                hook (ENHANCEMENT_REQUEST_autogrounding_layer.md)]
+
+               How do we write KG session notes into the project
+               directory so prior work carries forward across sessions?
 ```
 
-This is huge for several reasons:
-- Spell-checked prompts produce cleaner AI output (model distributions
-  skew toward clean text)
-- The AI gets automatic context about Mark's prior work — no manual
-  "look for prior art" step
-- Every session grows the KG — the system gets more grounded over time
-- Deterministic layer costs zero tokens, zero AI calls
+The LLM receives clean intent + grounded context. It never sees the
+raw prompt. It never has to ask clarifying questions about typos or
+vague phrasing. It starts informed.
 
 ### Hook mechanism — Claude Code `UserPromptSubmit`
-
-Claude Code supports a `UserPromptSubmit` hook that fires when the
-user submits a prompt, before it reaches the model. This is the
-correct intercept point.
-
-Add to `~/.claude/settings.json`:
 
 ```json
 "hooks": {
@@ -149,72 +183,34 @@ Add to `~/.claude/settings.json`:
                 }
             ]
         }
-    ],
-    "Stop": [ ... existing ... ]
+    ]
 }
 ```
 
-The hook script receives the prompt on stdin (JSON), processes it,
-and returns the enhanced prompt on stdout.
-
-### Hook script design: `autoground.py`
-
-```python
-#!/usr/bin/env python3
-"""
-autoground.py — UserPromptSubmit hook.
-
-Intercepts every prompt before it reaches Claude.
-Three deterministic operations: spell-check, keyword extract, KG query.
-Returns enhanced prompt with grounding context prepended.
-"""
-
-import json, sys, subprocess
-from pathlib import Path
-
-# Step 1: read prompt from hook stdin
-data = json.load(sys.stdin)
-prompt = data.get("prompt", "")
-
-# Step 2: spell-check
-# aspell --mode=none reads from stdin, outputs corrected text
-corrected = spellcheck(prompt)   # aspell/hunspell subprocess
-
-# Step 3: keyword extract from prompt
-# TF-IDF against the prompt text — fast, no model
-keywords = extract_keywords(corrected)   # lightweight sklearn TF-IDF
-
-# Step 4: query KG for matching nodes
-# calls autoground_query against file_metadata DB + autograph KG
-context = query_kg(keywords)   # returns top-N matching nodes
-
-# Step 5: build enhanced prompt
-if context:
-    enhanced = f"[Prior work context: {context}]\n\n{corrected}"
-else:
-    enhanced = corrected
-
-# Step 6: return to Claude Code
-data["prompt"] = enhanced
-json.dump(data, sys.stdout)
-sys.exit(0)
-```
+`autoground.py` is the thin wrapper: reads prompt from hook stdin
+(JSON), runs the aifilter pipe, returns enhanced prompt on stdout.
+The behaviors do the work. The script is just the plumbing.
 
 ### Hook mechanism — aifilter (pipe layer)
 
-For `aifilter` — since it is a pipe tool, the intercept is simpler:
+For aifilter workflows — the preprocessing slot is already in the pipe:
 
 ```sh
-# before: 
+# before:
 cat prompt.txt | aifilter -b behavior
 
-# after:
-cat prompt.txt | autoground | aifilter -b behavior
+# after — preprocessing is just more pipe stages:
+cat prompt.txt                    \
+  | aifilter -b keyword_extract   \
+  | autoground_query              \
+  | aifilter -b ground_prompt     \
+  | aifilter -b clean_and_tighten \
+  | aifilter -b behavior
 ```
 
-`autoground` is a standalone pipe script: reads stdin, spell-checks,
-queries KG, injects context, writes to stdout. No AI calls. Pure
-deterministic preprocessing. `aifilter` receives the grounded prompt.
+The main behavior receives a clean, grounded prompt. It does better
+work because the input is better. Same pattern as the funcspec:
+precision input, bounded translation, measurable output.
 
 ### Shell wrapper enhancement
 

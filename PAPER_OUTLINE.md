@@ -228,7 +228,51 @@ in the keywords (calibration needed). Both are worth knowing.
 
 ---
 
-## 5. The Autogrounding Hook — Carrying Forward
+## 5. Prompt Micro-Processing — Clean Before Sending
+
+The prompt is an artifact, same as any other. The funcspec gets
+processed before going to the AI. The code gets type-checked before
+running. The prompt should get the same treatment.
+
+This is micro-processing — not macro-scope context management. Process
+the smallest meaningful unit precisely, before it costs anything.
+
+The preprocessing pipeline is three aifilter behaviors in a pipe.
+No new infrastructure. Each call is local, single shot, zero cloud cost:
+
+```sh
+echo "$prompt"                    \
+  | aifilter -b keyword_extract   \
+  | autoground_query              \
+  | aifilter -b ground_prompt     \
+  | aifilter -b clean_and_tighten \
+  > enhanced_prompt
+```
+
+**`keyword_extract`** — phi4 reads the prompt, returns intent keywords.
+Not LDA — the prompt is too short. Just nouns and verbs. Fast.
+
+**`autoground_query`** — deterministic DB query, not an AI call.
+Keywords in, matching substrate nodes out. Milliseconds.
+
+**`ground_prompt`** — prepends matched prior work as grounding context.
+
+**`clean_and_tighten`** — phi4 fixes spelling, grammar, and vague
+intent in one shot. "we was kind of thinking maybe" → "we want to."
+Spell-check is subsumed — a local model does it better in the same pass.
+
+The LLM never sees the raw prompt. It sees clean intent + grounded
+context. It starts informed. It never has to ask clarifying questions
+about typos or ambiguous phrasing.
+
+**The research claim:** prompt preprocessing at the micro level
+measurably reduces clarifying question turns and improves first-shot
+answer quality. Falsifiable from the session corpus — count clarifying
+turns before and after preprocessing is enabled.
+
+---
+
+## 6. The Autogrounding Hook — Carrying Forward
 
 The hook is the mechanism that closes the cold-start problem.
 
@@ -265,9 +309,15 @@ changed. Because the substrate grew.
 
 ---
 
-## 6. The Experiment — Three Falsifiable Claims
+## 7. The Experiment — Four Falsifiable Claims
 
-None of these require a GPU. All three run on a MacBook.
+**Claim 4: Prompt preprocessing reduces clarifying question turns.**
+Measure: count turns where LLM asks "what do you mean by X?" or
+re-states the prompt back as a question. Sessions with preprocessing
+should have fewer. Raw prompts contain ambiguity the LLM has to resolve
+at cloud cost. Processed prompts resolve it locally first.
+
+None of these require a GPU. All four run on a MacBook.
 
 **Claim 1: Grounded prompts reduce re-explanation overhead.**
 Measure: count of "as I mentioned" / "as we discussed" turns per
@@ -288,7 +338,7 @@ uaish provides the session corpus for measurement [companion paper].
 
 ---
 
-## 7. Prior Work — What Exists and What Is Different
+## 8. Prior Work — What Exists and What Is Different
 
 Long-term memory for LLMs is well-studied [51][52][53][54][55][56].
 
@@ -319,7 +369,7 @@ by the queryable DB.
 
 ---
 
-## 8. What Needs to Be Written
+## 9. What Needs to Be Written
 
 1. Implementation of `autoground_query.py` — the core DB query primitive
 2. Implementation of `autoground.py` — the Stop hook script
