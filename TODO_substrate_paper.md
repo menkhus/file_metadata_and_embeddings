@@ -20,9 +20,9 @@ After these five: every session ends by writing prior_art_notes.md. The loop is 
 
 ## Track 1 — Core DB Infrastructure
 
-- [ ] Design final schema — sessions, nodes, edges, signals, nodes_fts
+- [x] Design final schema — sessions, nodes, edges, signals, nodes_fts
       (draft in ENHANCEMENT_REQUEST_autogrounding_layer.md Enhancement 3)
-- [ ] Create `substrate_db.py` — DB init, schema creation, connection manager
+- [x] Create `substrate_db.py` — DB init, schema creation, connection manager
 - [ ] Migrate autograph KG from CSV (nodes.csv, edges.csv) into SQLite
 - [ ] Wire file_metadata content_analysis (LDA, TF-IDF) as first feed
       — on index run, write nodes to substrate DB
@@ -34,13 +34,13 @@ After these five: every session ends by writing prior_art_notes.md. The loop is 
 
 ## Track 2 — Prompt Micro-Processing Behaviors
 
-- [ ] `keyword_extract.txt` — behavior: extract intent keywords from short prompt
+- [x] `keyword_extract.txt` — behavior: extract intent keywords from short prompt
       phi4, single shot, returns noun/verb keyword list, no LDA needed
-- [ ] `ground_prompt.txt` — behavior: receive prompt + DB context nodes,
+- [x] `ground_prompt.txt` — behavior: receive prompt + DB context nodes,
       prepend prior work as structured grounding context
-- [ ] `clean_and_tighten.txt` — behavior: fix spelling, grammar, tighten intent
+- [x] `clean_and_tighten.txt` — behavior: fix spelling, grammar, tighten intent
       absorbs spell-check — phi4 does it better in one pass than aspell separately
-- [ ] `summarize_prior_art.txt` — behavior: render DB query results as terse
+- [x] `summarize_prior_art.txt` — behavior: render DB query results as terse
       prior_art_notes.md — file paths, one-liners, max 20 lines
 - [ ] Test pipe: `echo "prompt" | aifilter -b keyword_extract | autoground_query
       | aifilter -b ground_prompt | aifilter -b clean_and_tighten`
@@ -50,13 +50,13 @@ After these five: every session ends by writing prior_art_notes.md. The loop is 
 
 ## Track 3 — Autogrounding Hook
 
-- [ ] `autoground_query.py` — given keyword list, query DB, return top-N nodes
+- [x] `autoground_query.py` — given keyword list, query DB, return top-N nodes
       (this is the core primitive everything else uses)
-- [ ] `autoground.py` — Stop hook: extract session keywords, query DB,
+- [x] `autoground.py` — Stop hook: extract session keywords, query DB,
       call phi4 via aifilter to render prior_art_notes.md
-- [ ] Behavior file: `summarize_prior_art.txt` — terse, file paths + one-liners,
+- [x] Behavior file: `summarize_prior_art.txt` — terse, file paths + one-liners,
       max 20 lines, grouped by internal/external/unpublished
-- [ ] Add `Stop` hook entry to `~/.claude/settings.json`
+- [x] Add `Stop` hook entry to `~/.claude/settings.json`
 - [ ] Test: run a session, verify prior_art_notes.md written to cwd
 - [ ] Test: start next session, verify Claude picks up prior_art_notes.md
 
