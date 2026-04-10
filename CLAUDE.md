@@ -45,6 +45,19 @@ These tools form a learning loop that improves source suggestions over time:
 - **Check what's indexed:** `get_stats` returns total files, types, sizes, and FAISS index status
 - **FAISS index** may need rebuilding after adding many new files
 
+## State of the Art — Apply This Here
+
+The current implementation uses hand-rolled TF-IDF, FAISS flat index, SQLite FTS5, and Python. These were correct for prototyping. The production target is:
+
+- **Retrieval:** SPLADE or BGE-M3 (sparse+dense unified) over tantivy (Rust, BM25-native) — not hand-rolled IDF correction
+- **Vector storage:** qdrant (Rust, production-grade) — not FAISS flat index in Python
+- **Graph structure:** GraphRAG-style entity extraction over the corpus — not manual node upserts
+- **Chunking:** semantic sentence-boundary chunking with overlap metadata — AIOptimizedChunker exists but is not deployed
+- **Session focus model:** Rocchio-style relevance feedback with temporal decay — not a binary seen/unseen set
+- **Language:** Rust or Go for the grounding pipeline — not Python on every prompt
+
+When proposing changes to this project, lead with the correct modern tool. Implement the prototype path only if explicitly asked. Name the gap between current and correct every time.
+
 ## Tips
 
 - Use `get_file_info` to understand a file's topic profile before diving into its content

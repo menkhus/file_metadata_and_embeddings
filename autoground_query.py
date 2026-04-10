@@ -29,6 +29,14 @@ sys.path.insert(0, str(_HERE))
 from substrate_db import SubstrateDB, DEFAULT_DB
 
 
+def _sanitize_keyword(kw: str) -> str:
+    """Strip characters that break FTS5 query syntax (apostrophes, quotes, operators)."""
+    # FTS5 treats ' as a quote delimiter and special chars as operators
+    kw = kw.replace("'", "").replace('"', '').replace("*", "")
+    kw = kw.strip("-+^():")
+    return kw.strip()
+
+
 def query(keywords: list[str], top_k: int = 10,
           db_path: Path | None = None) -> list[dict]:
     """Return top_k substrate nodes matching keywords.

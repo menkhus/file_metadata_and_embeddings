@@ -192,13 +192,20 @@ class SubstrateDB:
         seen = set()
         with self.connect() as conn:
             for kw in keywords:
-                rows = conn.execute("""
-                    SELECT n.id, n.type, n.label, n.source, n.last_seen, n.metadata
-                    FROM nodes_fts f
-                    JOIN nodes n ON n.id = f.id
-                    WHERE nodes_fts MATCH ?
-                    LIMIT ?
-                """, (kw, top_k)).fetchall()
+                # FTS5 chokes on apostrophes and special operator chars
+                safe_kw = kw.replace("'", "").replace('"', '').strip("-+^():")
+                if not safe_kw:
+                    continue
+                try:
+                    rows = conn.execute("""
+                        SELECT n.id, n.type, n.label, n.source, n.last_seen, n.metadata
+                        FROM nodes_fts f
+                        JOIN nodes n ON n.id = f.id
+                        WHERE nodes_fts MATCH ?
+                        LIMIT ?
+                    """, (safe_kw, top_k)).fetchall()
+                except Exception:
+                    continue
                 for row in rows:
                     if row["id"] not in seen:
                         seen.add(row["id"])
