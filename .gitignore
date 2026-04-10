@@ -85,3 +85,11 @@ temp/
 research/
 experiments/
 scratch/
+
+# Claude Code session state
+.claude/
+osx_support/.claude/
+
+# uv / Python packaging
+pyproject.toml
+uv.lock
