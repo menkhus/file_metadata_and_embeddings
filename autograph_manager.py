@@ -21,6 +21,11 @@ from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
 # Optional: sentence-transformers for embeddings
 try:
     from sentence_transformers import SentenceTransformer
