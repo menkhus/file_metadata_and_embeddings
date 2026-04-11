@@ -117,17 +117,29 @@ import threading
 from enum import Enum
 
 # Third-party imports (install via pip)
+# tqdm and numpy/sklearn are always required; sentence_transformers is optional
+# (skipped when --skip-embeddings is passed).
 try:
+    from tqdm import tqdm
     import numpy as np
     from sklearn.feature_extraction.text import TfidfVectorizer
-    from sentence_transformers import SentenceTransformer
-    from tqdm import tqdm
-    import setproctitle
-
 except ImportError as e:
     print(f"Missing required package: {e}")
-    print("Please install with: pip install numpy scikit-learn sentence-transformers tqdm")
+    print("Please install with: pip install numpy scikit-learn tqdm")
     print("Continuing with reduced functionality...")
+
+try:
+    import setproctitle as _setproctitle  # type: ignore
+    def _set_process_title(title: str) -> None:
+        _setproctitle.setproctitle(title)
+except ImportError:
+    def _set_process_title(title: str) -> None:  # type: ignore[misc]
+        pass  # setproctitle not installed — process title unchanged
+
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None  # type: ignore  # Available only when embeddings are enabled
 
 # Configure logging with improved chardet debug routing
 # Create file handler for all debug messages
@@ -135,14 +147,14 @@ file_handler = logging.FileHandler('file_metadata_system.log')
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s'))
 
-# Create console handler for INFO and above only
+# Create console handler — WARNING by default; main() raises to INFO/DEBUG if --verbose/--debug
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
+console_handler.setLevel(logging.WARNING)
 console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
 # Configure root logger
 root_logger = logging.getLogger()
-root_logger.setLevel(logging.DEBUG)
+root_logger.setLevel(logging.WARNING)
 root_logger.handlers.clear()
 root_logger.addHandler(file_handler)
 root_logger.addHandler(console_handler)
@@ -504,6 +516,10 @@ class TextProcessor:
 
     def _initialize_sentence_transformer(self):
         """Initialize sentence transformer with error handling"""
+        if SentenceTransformer is None:
+            logger.warning("sentence_transformers not installed — embeddings unavailable")
+            self.sentence_model = None
+            return
         try:
             self.sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
             logger.info("Sentence transformer initialized successfully")
@@ -1665,11 +1681,7 @@ class FileMetadataExtractor:
             return False, f"Error checking file: {e}"
     
     def process_single_file(self, file_path: Path, force: bool = False) -> ProcessingStatus:
-        try:
-            import setproctitle
-            setproctitle.setproctitle(f"file_metadata_content.py-worker-{file_path.name}")
-        except Exception:
-            pass
+        _set_process_title(f"file_metadata_content.py-worker-{file_path.name}")
         """Process a single file with comprehensive error handling and file descriptor management"""
 
         # Use semaphore to limit concurrent file operations
@@ -1781,11 +1793,7 @@ class FileMetadataExtractor:
     def scan_directory(self, directory_path: str, max_workers: int = 4, force: bool = False) -> Dict[str, Any]:
         # Limit max workers to prevent resource exhaustion
         max_workers = min(max_workers, 32)  # Allow up to 32 workers for I/O-bound work
-        try:
-            import setproctitle
-            setproctitle.setproctitle("file_metadata_content.py-thread-manager")
-        except Exception:
-            pass
+        _set_process_title("file_metadata_content.py-thread-manager")
         """Scan directory and extract metadata with comprehensive error handling, support --force and skip unchanged"""
         start_time = datetime.now()
         session_id = f"scan_{int(start_time.timestamp())}"
@@ -2042,11 +2050,7 @@ class FileMetadataExtractor:
         return results
 
 def main():
-    try:
-        import setproctitle
-        setproctitle.setproctitle("file_metadata_content.py-main")
-    except Exception:
-        pass
+    _set_process_title("file_metadata_content.py-main")
     """Main function for CLI usage with enhanced error handling"""
     import argparse
     
@@ -2068,13 +2072,16 @@ def main():
 
     args = parser.parse_args()
 
-    # Configure logging level
+    # Configure logging level — also raise console_handler to match
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
+        console_handler.setLevel(logging.DEBUG)
     elif args.verbose:
         logging.getLogger().setLevel(logging.INFO)
+        console_handler.setLevel(logging.INFO)
     else:
         logging.getLogger().setLevel(logging.WARNING)
+        console_handler.setLevel(logging.WARNING)
 
     # Parse extensions from comma-separated string
     allowed_extensions = {ext.strip() if ext.strip().startswith('.') else f'.{ext.strip()}'
@@ -2113,7 +2120,8 @@ def main():
 
 
         # Fetch processing stats for this session from the database
-        extractor = FileMetadataExtractor(args.db)
+        # skip_embeddings=True: this extractor is only used for DB reads, no text processing needed
+        extractor = FileMetadataExtractor(args.db, skip_embeddings=True)
         session_id = results['session_id']
         stats = None
         try:
