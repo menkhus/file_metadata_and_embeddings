@@ -44,3 +44,13 @@ uv run python3 file_metadata_content.py \
     --workers "$WORKERS" \
     "$@" \
     ~/ai_shell_logs
+
+# ~/.claude is hidden so needs explicit allowlist override
+uv run python3 file_metadata_content.py \
+    --db ~/data/file_metadata.sqlite3 \
+    --extensions "$EXTENSIONS" \
+    --denylist "$DENYLIST" \
+    --allowlist "$HOME/.claude" \
+    --workers "$WORKERS" \
+    "$@" \
+    ~/.claude

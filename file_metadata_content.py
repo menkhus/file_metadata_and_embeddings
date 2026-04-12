@@ -1429,7 +1429,7 @@ class FileMetadataExtractor:
         # Configure directory allowlist (full paths that override denylist)
         self.allowlist_paths = allowlist_paths if allowlist_paths is not None else self.DEFAULT_ALLOWLIST_PATHS
         # Normalize allowlist paths to Path objects for comparison
-        self._normalized_allowlist = {Path(p).resolve() for p in self.allowlist_paths}
+        self._normalized_allowlist = {Path(os.path.abspath(p)) for p in self.allowlist_paths}
 
         # File descriptor management
         # Limit concurrent file operations to prevent EMFILE errors
@@ -1448,6 +1448,25 @@ class FileMetadataExtractor:
             'timeout_files': 0,
             'unknown_error_files': 0
         }
+
+    def _is_allowlisted(self, path: Path) -> bool:
+        """Return True if path is inside any allowlisted directory.
+
+        Uses os.path.abspath (not .resolve()) so that symlinks inside an
+        allowlisted directory are still considered inside it — .resolve()
+        would follow the symlink to its real location outside the tree.
+        """
+        try:
+            abs_path = Path(os.path.abspath(path))
+            for allowlisted in self._normalized_allowlist:
+                try:
+                    abs_path.relative_to(allowlisted)
+                    return True
+                except ValueError:
+                    continue
+        except (OSError, RuntimeError):
+            pass
+        return False
 
     def _file_operation_context(self):
         """Context manager for file operations with semaphore"""
@@ -1489,19 +1508,20 @@ class FileMetadataExtractor:
         """
         try:
             # 1. Allowlist check - explicit includes override all skip rules
+            # Use abspath not resolve() so symlinks inside the allowlisted tree
+            # are still considered inside it.
             try:
-                resolved_path = dir_path.resolve()
-                if resolved_path in self._normalized_allowlist:
+                abs_path = Path(os.path.abspath(dir_path))
+                if abs_path in self._normalized_allowlist:
                     return False, "Allowlisted directory"
-                # Also check if any parent is allowlisted (allows subdirs of allowlisted paths)
                 for allowlisted in self._normalized_allowlist:
                     try:
-                        resolved_path.relative_to(allowlisted)
+                        abs_path.relative_to(allowlisted)
                         return False, "Inside allowlisted directory"
                     except ValueError:
                         continue
             except (OSError, RuntimeError):
-                pass  # Path resolution failed, continue with other checks
+                pass
 
             # 2. Skip hidden directories
             if self.is_hidden_path(dir_path):
@@ -1590,7 +1610,7 @@ class FileMetadataExtractor:
                     if self.interrupt_handler.should_shutdown():
                         return
                     try:
-                        if self.is_hidden_path(entry):
+                        if self.is_hidden_path(entry) and not self._is_allowlisted(entry):
                             logger.debug(f"Skipping hidden path: {entry}")
                             continue
                         if entry.is_file():
@@ -1659,9 +1679,9 @@ class FileMetadataExtractor:
             if self.interrupt_handler.should_shutdown():
                 return False, "Shutdown requested"
             
-            # At this point, hidden files should already be filtered out
-            # But let's double-check as a safety measure
-            if self.is_hidden_path(file_path):
+            # Hidden-file safety check — respect allowlist so explicitly included
+            # hidden directories (e.g. ~/.claude) pass through.
+            if self.is_hidden_path(file_path) and not self._is_allowlisted(file_path):
                 return False, "Hidden file"
             
             # Check if file exists
