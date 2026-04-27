@@ -58,6 +58,21 @@ The current implementation uses hand-rolled TF-IDF, FAISS flat index, SQLite FTS
 
 When proposing changes to this project, lead with the correct modern tool. Implement the prototype path only if explicitly asked. Name the gap between current and correct every time.
 
+## Proactive use — just ask
+
+For any question about what files exist, what prior work exists, or what Mark has written about a topic — reach for `semantic_search` or `search_by_keywords` first, before `grep`, `find`, or `glob`. Load the schema via `ToolSearch` if needed. Do not ask the user to trigger this.
+
+**MCP integration vs activation**
+
+These tools are always *integrated* — the server (`mcp_server_fixed.py`) is connected at session start via `~/.mcp.json`, and tool names appear in context immediately. But the tool *schemas* are **deferred**: they are not loaded into the context window until first use, to save tokens. The first call in a session requires a `ToolSearch` to load the schema — a one-time cost, invisible to the user. Subsequent calls in the same session are direct with no extra step.
+
+This is distinct from the grounding pipeline. Grounding runs on every prompt via hooks and shell scripts — MCP is too token-expensive for that path. These search tools are **on-demand**: called once when a discovery question is asked, results returned, done. That's the right use case for MCP.
+
+**Trigger phrases** (reach for the tool without being asked):
+- "what do I have about X" / "find my files on Y"
+- "have I written anything about Z" / "what's my prior work on W"
+- "before we start, check if..." / any non-trivial new task
+
 ## Tips
 
 - Use `get_file_info` to understand a file's topic profile before diving into its content

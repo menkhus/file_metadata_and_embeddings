@@ -27,7 +27,7 @@ uv run python3 file_metadata_content.py \
     --denylist "$DENYLIST" \
     --workers "$WORKERS" \
     "$@" \
-    ~/src
+    ~/Documents/src
 
 uv run python3 file_metadata_content.py \
     --db ~/data/file_metadata.sqlite3 \
@@ -35,7 +35,7 @@ uv run python3 file_metadata_content.py \
     --denylist "$DENYLIST" \
     --workers "$WORKERS" \
     "$@" \
-    ~/writing
+    ~/Documents/writing
 
 uv run python3 file_metadata_content.py \
     --db ~/data/file_metadata.sqlite3 \

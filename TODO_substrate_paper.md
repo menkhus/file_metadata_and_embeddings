@@ -3,7 +3,7 @@
 *Filed April 2026. Two tracks: implementation and paper writing.*
 *Paper outline: `PAPER_OUTLINE.md`*
 *Enhancement details: `ENHANCEMENT_REQUEST_autogrounding_layer.md`*
-*Last updated: 2026-04-09 — evening session*
+*Last updated: 2026-04-27 — session-start-ground, dual-pool A+B, path fixes, uptake metric*
 
 ---
 
@@ -76,8 +76,16 @@ After these five: every session ends by writing prior_art_notes.md. The loop is 
 - [x] Behavior file: `summarize_prior_art.txt` — terse, file paths + one-liners,
       max 20 lines, grouped by internal/external/unpublished
 - [x] Add `Stop` hook entry to `~/.claude/settings.json`
-- [ ] Test: run a session, verify prior_art_notes.md written to cwd
-- [ ] Test: start next session, verify Claude picks up prior_art_notes.md
+- [x] Test: run a session, verify prior_art_notes.md written to cwd
+- [x] Test: start next session, verify Claude picks up prior_art_notes.md
+- [x] **session-start-ground.py** (2026-04-27) — replace Stop hook approach with
+      SessionStart hook. Reads previous session transcript directly. Dual-pool:
+      Pool A = last 10 user prompts, Pool B = last 5 assistant responses.
+      A+B confirmed keywords lead the merged query. More reliable than Stop hook
+      (deterministic at session open, no dependency on prior session cleanup).
+      Wired in ~/.claude/settings.json SessionStart hooks.
+- [x] Retire autoground.py from Stop hooks — session-start-ground.py supersedes it.
+      autoground.py kept on disk as reference.
 
 ---
 
@@ -139,14 +147,18 @@ Grounding stays in hooked scripts. Track 4 is standalone CLI tools only.
       The scheduled launchd job (Track 3) handles this automatically.
       Longer-term: consider normalizing IDF by log(N) to make scores comparable
       across corpus sizes, or switch to BM25 which has better large-corpus behavior.
-- [ ] **A/B pool matching (2026-04-10)** — currently only Pool A (prompt text) is
-      matched against the substrate DB. Add Pool B (generated/response text) as
-      a second independent source. Track A-match and B-match counts separately
-      per node per session. Weight: A+B same turn > A-only > B-only.
-      B-only persistent matches are the most interesting signal — concept the
-      model keeps activating unprompted. Watch for feedback loops (injected node
-      reappearing in B is self-referential noise, not genuine signal).
-      See SESSION_NOTES_2026-04-10.md for full design rationale.
+- [x] **A/B pool matching (2026-04-10, completed 2026-04-27)** — Pool A (prompt)
+      and Pool B (response) matched independently against substrate DB. A+B
+      confirmed nodes weighted 3×, A-only 2×, B-only 1×. Staleness penalty
+      prevents injection feedback loops. Implemented in prompt-ground.py (per-prompt)
+      and session-start-ground.py (cross-session, previous transcript).
+- [ ] **Uptake measurement (2026-04-27)** — does injected context actually influence
+      the model? Add uptake_count field to session state in prompt-ground.py.
+      Increment when a previously-injected node's label/path appears in Pool B
+      keywords on a subsequent turn. Uptake rate = uptake_count / shown_count
+      per session. Log to substrate DB sessions table. After 30 sessions, compare
+      uptake rate distribution to determine if the machinery is live or inert.
+      This is the minimum credible evidence that grounding is working.
 
 - [ ] **Session active set with recency decay** — change seen tracker from binary
       set to weighted counter {node_id: (match_count, last_seen_turn)}.
@@ -170,6 +182,32 @@ Grounding stays in hooked scripts. Track 4 is standalone CLI tools only.
       session-conditioned adaptation. This is an open research direction.
       Start simple: write converged active set to substrate DB session node.
       The LoRA connection is the long-term research direction.
+
+- [x] **Rolling within-session dual-pool delta (2026-04-27, high impact)** —
+      every 10 turns, inject a diff of the session node state as an additional
+      context block. NOT a file rewrite — prior_art_notes.md stays as the stable
+      cross-session anchor. The delta is ephemeral: injected in additionalContext
+      at turn 10, 20, 30... visible to the model at that moment only.
+
+      Scope separation:
+        prior_art_notes.md = cross-session anchor (written at startup, read next session)
+        ## Autoground Delta block = within-session signal (transient, not persisted)
+
+      Delta categories (both pools, from live session state):
+        - Newly confirmed A+B: both pools now agree, neither did at last snapshot
+        - Promoted A→A+B: model started activating a prompt-declared concept
+        - Persistent B-only: model keeps surfacing unprompted — highest interest signal
+        - Faded: matched early, not seen in last 10 turns — session moved on
+
+      Implementation: snapshot node state at turn 0 and every 10 turns. Diff
+      current snapshot against previous. Session state dict already has a_count,
+      b_count, last_turn per node — delta falls out naturally. Keep only last 2
+      snapshots to bound state file size. Inject formatted delta block alongside
+      existing ## Autoground Context block in prompt-ground.py main().
+
+      Risk: may confuse the model if the delta is noisy or contradicts context.
+      Monitor prompt-ground.log for turn % 10 entries. Easy to disable by setting
+      DELTA_INTERVAL = 0.
 
 - [ ] **Node states in substrate DB** — add state field: active | suspended |
       superseded | resolved. Suspended = held deliberately, pending evidence.
@@ -198,6 +236,25 @@ Grounding stays in hooked scripts. Track 4 is standalone CLI tools only.
 ---
 
 ## Track 7 — Paper Writing
+
+- [ ] **Core thesis — document before writing sections (2026-04-27):**
+      The context window is not misaligned — it is complete and correct for what
+      it contains. The problem is not context quality, it is context *continuity*
+      across session boundaries. What is lost at session close is train of thought:
+      the accumulated vocabulary, the decisions made, the direction the reasoning
+      was heading. The model cannot carry that forward because it has no persistence.
+      This system externalizes train of thought into retrievable artifacts
+      (prior_art_notes.md, session chain, dual-pool keyword state) and re-injects
+      it at session open and at rolling intervals within a session. The context
+      window then has what it needs to reason as if the session is continuous.
+      The LLM is not pretending to remember — it is reasoning correctly from
+      complete context. We are the ones responsible for making that context complete.
+      Framing consequence: the evaluation question is not "does the model remember?"
+      It is "is the re-injected train of thought sufficient for the model to reason
+      continuously, and does that reduce friction for the user?" Those are measurable.
+      This also cleanly separates the work from memory-augmented LLM research
+      (which targets persistence inside the model) and positions it as external
+      train-of-thought continuity infrastructure — a different and more tractable claim.
 
 - [ ] Write Section 1 prose — The Problem (cold start)
 - [ ] Write Section 2 prose — The Substrate (schema, feeds)
