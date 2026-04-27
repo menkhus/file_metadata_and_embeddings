@@ -1,0 +1,54 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/mark/.claude/scripts/claude-startup-audit.py"
+          },
+          {
+            "type": "command",
+            "command": "uv run --project /Users/mark/Documents/src/file_metadata_and_embeddings python3 /Users/mark/.claude/scripts/session-start-ground.py"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --project /Users/mark/Documents/src/file_metadata_and_embeddings python3 /Users/mark/.claude/scripts/prompt-ground.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/mark/.claude/scripts/context-stop.py"
+          },
+          {
+            "type": "command",
+            "command": "/Users/mark/.claude/scripts/claude-settings-cleanup.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "swift-lsp@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
+  },
+  "spinnerTipsEnabled": false,
+  "prefersReducedMotion": true,
+  "terminalProgressBarEnabled": false,
+  "statusCommand": "python3 /Users/mark/.claude/scripts/context-status.py"
+}
