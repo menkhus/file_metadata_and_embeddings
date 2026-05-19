@@ -119,10 +119,12 @@ from enum import Enum
 # Third-party imports (install via pip)
 # tqdm and numpy/sklearn are always required; sentence_transformers is optional
 # (skipped when --skip-embeddings is passed).
+_SKLEARN_AVAILABLE = False
 try:
     from tqdm import tqdm
     import numpy as np
     from sklearn.feature_extraction.text import TfidfVectorizer
+    _SKLEARN_AVAILABLE = True
 except ImportError as e:
     print(f"Missing required package: {e}")
     print("Please install with: pip install numpy scikit-learn tqdm")
@@ -667,40 +669,42 @@ class TextProcessor:
     
     def extract_tfidf_keywords(self, texts: List[str], max_features: int = 1000) -> List[Tuple[str, float]]:
         """Extract TF-IDF keywords from text corpus with error handling"""
+        if not _SKLEARN_AVAILABLE:
+            return []
         try:
             if not texts:
                 return []
-            
+
             # Filter out empty texts
             texts = [text.strip() for text in texts if text.strip()]
             if not texts:
                 return []
-            
+
             # Create a new TfidfVectorizer for this specific corpus
             # Adjust max_features based on corpus size
             actual_max_features = min(max_features, len(' '.join(texts).split()))
-            
-            tfidf_vectorizer = TfidfVectorizer(
+
+            tfidf_vectorizer = TfidfVectorizer(  # type: ignore[reportPossiblyUnbound]
                 max_features=actual_max_features,
                 stop_words='english',
                 ngram_range=(1, 2),
                 min_df=1,  # Minimum document frequency
                 max_df=0.95  # Maximum document frequency
             )
-            
+
             # Fit and transform the texts
             tfidf_matrix = tfidf_vectorizer.fit_transform(texts)
             feature_names = tfidf_vectorizer.get_feature_names_out()
-            
+
             # Get mean TF-IDF scores across all documents
-            mean_scores = np.mean(tfidf_matrix.toarray(), axis=0)
-            
+            mean_scores = np.mean(tfidf_matrix.toarray(), axis=0)  # type: ignore[union-attr]
+
             # Get top keywords (limit to available features)
             num_top_keywords = min(20, len(feature_names))
-            top_indices = np.argsort(mean_scores)[-num_top_keywords:][::-1]
-            
-            return [(feature_names[i], float(mean_scores[i])) for i in top_indices]
-            
+            top_indices = np.argsort(mean_scores)[-num_top_keywords:][::-1]  # type: ignore[reportPossiblyUnbound]
+
+            return [(str(feature_names[i]), float(mean_scores[i])) for i in top_indices]
+
         except Exception as e:
             logger.warning(f"TF-IDF extraction failed: {e}")
             return []
@@ -869,6 +873,7 @@ class DatabaseManager:
         """Close the thread-local connection"""
         if hasattr(self._local, 'connection') and self._local.connection:
             try:
+                self._local.connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
                 self._local.connection.close()
             except:
                 pass
