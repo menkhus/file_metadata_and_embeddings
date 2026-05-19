@@ -1745,17 +1745,15 @@ class FileMetadataExtractor:
 
         logger.info("Starting embedding backfill...")
 
-        # Find files with chunks but no embeddings
-        with self.db_manager.get_connection() as conn:
-            cursor = conn.cursor()
-            # Find files in text_chunks that don't have entries in embeddings_index
-            cursor.execute('''
-                SELECT DISTINCT tc.file_path
-                FROM text_chunks tc
-                LEFT JOIN embeddings_index ei ON tc.file_path = ei.file_path
-                WHERE ei.file_path IS NULL
+        # Find files with chunks missing embeddings
+        conn = self.db_manager.get_connection()
+        with conn.cursor() as cur:
+            cur.execute('''
+                SELECT DISTINCT file_path
+                FROM text_chunks
+                WHERE embedding IS NULL
             ''')
-            files_to_process = [row[0] for row in cursor.fetchall()]
+            files_to_process = [row[0] for row in cur.fetchall()]
 
         if not files_to_process:
             logger.info("No files need embedding backfill.")
@@ -1775,14 +1773,15 @@ class FileMetadataExtractor:
 
         for file_path in tqdm(files_to_process, desc="Backfilling embeddings"):
             try:
-                # Get chunks for this file
-                with self.db_manager.get_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute('''
-                        SELECT chunk_index, chunk_text FROM text_chunks
-                        WHERE file_path = ? ORDER BY chunk_index
+                # Get chunks missing embeddings for this file
+                conn = self.db_manager.get_connection()
+                with conn.cursor() as cur:
+                    cur.execute('''
+                        SELECT chunk_index, content FROM text_chunks
+                        WHERE file_path = %s AND embedding IS NULL
+                        ORDER BY chunk_index
                     ''', (file_path,))
-                    chunks = [(row[0], row[1]) for row in cursor.fetchall()]
+                    chunks = [(row[0], row[1]) for row in cur.fetchall()]
 
                 if not chunks:
                     continue
@@ -1795,26 +1794,19 @@ class FileMetadataExtractor:
                     files_failed += 1
                     continue
 
-                # Store embeddings
-                with self.db_manager.get_connection() as conn:
-                    cursor = conn.cursor()
-                    for (chunk_idx, _), embedding in zip(chunks, embeddings):
-                        try:
-                            embedding_json = json.dumps(embedding)
-                            cursor.execute('''
-                                INSERT OR REPLACE INTO embeddings_index (file_path, chunk_index, embedding, metadata)
-                                VALUES (?, ?, ?, NULL)
-                            ''', (file_path, chunk_idx, embedding_json))
-
-                            # Also update chunk_embedding in text_chunks
-                            embedding_blob = np.array(embedding).tobytes()
-                            cursor.execute('''
-                                UPDATE text_chunks SET chunk_embedding = ?
-                                WHERE file_path = ? AND chunk_index = ?
-                            ''', (embedding_blob, file_path, chunk_idx))
-                        except Exception as e:
-                            logger.warning(f"Error storing embedding for {file_path} chunk {chunk_idx}: {e}")
-                    conn.commit()
+                # Store embeddings directly in text_chunks.embedding (pgvector)
+                conn = self.db_manager.get_connection()
+                with conn:
+                    with conn.cursor() as cur:
+                        for (chunk_idx, _), embedding in zip(chunks, embeddings):
+                            try:
+                                embedding_vec = "[" + ",".join(f"{v:.8f}" for v in embedding) + "]"
+                                cur.execute('''
+                                    UPDATE text_chunks SET embedding = %s::vector
+                                    WHERE file_path = %s AND chunk_index = %s
+                                ''', (embedding_vec, file_path, chunk_idx))
+                            except Exception as e:
+                                logger.warning(f"Error storing embedding for {file_path} chunk {chunk_idx}: {e}")
 
                 files_successful += 1
 
