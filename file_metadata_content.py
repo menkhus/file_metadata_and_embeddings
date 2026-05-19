@@ -97,7 +97,7 @@ v1  Initial schema: file_metadata, directory_structure, content_analysis,
 }
 
 import os
-import sqlite3
+import sqlite3  # kept for legacy type references only
 import hashlib
 import mimetypes
 import platform
@@ -113,6 +113,9 @@ from typing import Dict, List, Optional, Tuple, Any
 import logging
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import psycopg2
+import psycopg2.pool
+import psycopg2.extras
 import threading
 from enum import Enum
 
@@ -804,370 +807,139 @@ class TextProcessor:
                 processing_status=processing_status,
                 error_message=error_message
             )
+_PG_DSN = (
+    "host=localhost dbname=file_metadata user=postgres "
+    f"password={os.environ.get('DB_PASSWORD', '')}"
+)
+
+
 class DatabaseManager:
-    """SQLite database manager with enhanced error handling and connection pooling"""
+    """PostgreSQL database manager — drop-in replacement for the former SQLite manager."""
 
     def __init__(self, db_path: str = "file_metadata.db"):
+        # db_path retained for API compatibility; PostgreSQL DSN comes from env/DB_PASSWORD
         self.db_path = db_path
-        self.connection_timeout = 30  # seconds
-        self.max_retries = 5  # Increased for better reliability
-        self.retry_delay = 0.5  # Reduced delay for faster retries
-        self._local = threading.local()  # Thread-local storage for connections
-        self._connection_lock = threading.Lock()  # Lock for connection management
-
-        # Create database directory if it doesn't exist
-        db_dir = Path(db_path).parent
-        db_dir.mkdir(parents=True, exist_ok=True)
-
+        self.max_retries = 5
+        self.retry_delay = 0.5
+        self._pool = psycopg2.pool.ThreadedConnectionPool(1, 10, dsn=_PG_DSN)
+        self._local = threading.local()
         self.init_database()
     
-    def get_connection(self) -> sqlite3.Connection:
-        """Get thread-local database connection with retry logic"""
-        # Check if we already have a connection for this thread
-        if hasattr(self._local, 'connection') and self._local.connection:
-            try:
-                # Test the connection
-                self._local.connection.execute("SELECT 1")
-                return self._local.connection
-            except sqlite3.Error:
-                # Connection is stale, remove it
-                try:
-                    self._local.connection.close()
-                except:
-                    pass
-                self._local.connection = None
-
-        # Create new connection for this thread
-        for attempt in range(self.max_retries):
-            try:
-                with self._connection_lock:  # Serialize connection creation
-                    conn = sqlite3.connect(
-                        self.db_path,
-                        timeout=self.connection_timeout,
-                        check_same_thread=False
-                    )
-                    conn.execute("PRAGMA journal_mode=WAL")  # Enable WAL mode for better concurrency
-                    conn.execute("PRAGMA synchronous=NORMAL")  # Balance between safety and performance
-                    conn.execute("PRAGMA busy_timeout=5000")  # 5 second timeout for locks
-
-                    # Store in thread-local storage
-                    self._local.connection = conn
-                    return conn
-
-            except sqlite3.OperationalError as e:
-                if ("database is locked" in str(e).lower() or "database is busy" in str(e).lower()) and attempt < self.max_retries - 1:
-                    # Add exponential backoff
-                    wait_time = self.retry_delay * (2 ** attempt)
-                    logger.warning(f"Database locked/busy, retrying in {wait_time:.1f} seconds... (attempt {attempt + 1}/{self.max_retries})")
-                    time.sleep(wait_time)
-                    continue
-                else:
-                    raise
-            except Exception as e:
-                logger.error(f"Database connection error: {e}")
-                raise
-
-        raise sqlite3.OperationalError("Could not connect to database after retries")
+    def get_connection(self):
+        """Get a thread-local PostgreSQL connection from the pool."""
+        conn = getattr(self._local, 'connection', None)
+        if conn is None or conn.closed:
+            self._local.connection = self._pool.getconn()
+            self._local.connection.autocommit = False
+        return self._local.connection
 
     def close_connection(self):
-        """Close the thread-local connection"""
-        if hasattr(self._local, 'connection') and self._local.connection:
+        """Return the thread-local connection to the pool."""
+        conn = getattr(self._local, 'connection', None)
+        if conn:
             try:
-                self._local.connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-                self._local.connection.close()
-            except:
+                self._pool.putconn(conn)
+            except Exception:
                 pass
             self._local.connection = None
 
     def execute_with_retry(self, operation_func, *args, **kwargs):
-        """Execute database operation with retry logic for locked database"""
+        """Execute with retry on transient PostgreSQL errors."""
         for attempt in range(self.max_retries):
             try:
                 return operation_func(*args, **kwargs)
-            except sqlite3.OperationalError as e:
-                if ("database is locked" in str(e).lower() or "database is busy" in str(e).lower()) and attempt < self.max_retries - 1:
+            except psycopg2.OperationalError as e:
+                if attempt < self.max_retries - 1:
                     wait_time = self.retry_delay * (2 ** attempt)
-                    logger.warning(f"Database operation failed (locked/busy), retrying in {wait_time:.1f} seconds... (attempt {attempt + 1}/{self.max_retries})")
+                    logger.warning(f"DB operation failed, retrying in {wait_time:.1f}s... ({attempt+1}/{self.max_retries})")
                     time.sleep(wait_time)
-                    # Close and recreate connection on retry
                     self.close_connection()
-                    continue
                 else:
                     raise
             except Exception as e:
                 logger.error(f"Database operation error: {e}")
                 raise
-
-        raise sqlite3.OperationalError("Database operation failed after retries")
+        raise psycopg2.OperationalError("Database operation failed after retries")
 
     def init_database(self):
-        """Initialize database tables with error handling"""
+        """Verify PostgreSQL connection; schema already created by DDL."""
         try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-
-                # readme — versioned self-documentation, one row per schema version
-                # Created by: file_metadata_content.py (DatabaseManager.init_database / _upsert_readme)
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS readme (
-                        version     INTEGER PRIMARY KEY,  -- matches FILE_METADATA_SCHEMA_VERSION
-                        updated_at  TEXT,                 -- ISO8601
-                        content     TEXT                  -- full human-readable schema description
-                    )
-                ''')
-
-                # file_metadata — one row per indexed file, file_path is primary key
-                # Created by: file_metadata_content.py (DatabaseManager.init_database)
-                # Written by: file_metadata_content.py (DatabaseManager.insert_file_metadata)
-                # Read by:    mcp_server_fixed.py (search_files, get_file_info)
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS file_metadata (
-                        file_path TEXT PRIMARY KEY,       -- absolute path
-                        file_name TEXT NOT NULL,
-                        directory TEXT NOT NULL,
-                        file_size INTEGER NOT NULL,
-                        file_type TEXT,
-                        mime_type TEXT,
-                        created_date TEXT,
-                        modified_date TEXT,
-                        accessed_date TEXT,
-                        permissions TEXT,
-                        file_hash TEXT,
-                        is_text_file BOOLEAN,
-                        encoding TEXT,
-                        processing_status TEXT DEFAULT 'success',
-                        error_message TEXT,
-                        indexed_date TEXT DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-
-                # directory_structure — one row per directory seen during indexing
-                # Created by: file_metadata_content.py (DatabaseManager.init_database)
-                # Written by: file_metadata_content.py (FileMetadataExtractor)
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS directory_structure (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        directory_path TEXT UNIQUE NOT NULL,
-                        parent_directory TEXT,
-                        file_count INTEGER DEFAULT 0,
-                        total_size INTEGER DEFAULT 0,
-                        last_updated TEXT DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-
-                # content_analysis — TF-IDF keywords, word/char counts, language per file
-                # Created by: file_metadata_content.py (DatabaseManager.init_database)
-                # Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
-                # Read by:    mcp_server_fixed.py (search_by_keywords, get_file_info)
-                #             extract_idea_signatures.py (project keyword aggregation → substrate.sqlite3)
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS content_analysis (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        file_path TEXT NOT NULL,
-                        file_hash TEXT NOT NULL,
-                        word_count INTEGER,
-                        char_count INTEGER,
-                        language TEXT,
-                        tfidf_keywords TEXT,              -- JSON array of [keyword, score] pairs
-                        processing_status TEXT DEFAULT 'success',
-                        error_message TEXT,
-                        analysis_date TEXT DEFAULT CURRENT_TIMESTAMP,
-                        processing_time_seconds REAL,
-                        FOREIGN KEY (file_path) REFERENCES file_metadata (file_path)
-                    )
-                ''')
-
-                # text_chunks — chunked content for embedding and FTS
-                # Created by: file_metadata_content.py (DatabaseManager.init_database)
-                # Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
-                # Read by:    build_faiss_index.py (loads chunks to build FAISS index)
-                #             mcp_server_fixed.py (get_file_chunks, full_text_search)
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS text_chunks (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        file_path TEXT NOT NULL,
-                        chunk_index INTEGER NOT NULL,
-                        chunk_text TEXT NOT NULL,
-                        chunk_embedding BLOB,             -- binary embedding (legacy; prefer embeddings_index)
-                        FOREIGN KEY (file_path) REFERENCES file_metadata (file_path)
-                    )
-                ''')
-
-                # embeddings_index — chunk embedding vectors as JSON arrays for FAISS
-                # Created by: file_metadata_content.py (DatabaseManager.init_database)
-                # Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
-                # Read by:    build_faiss_index.py (loads vectors into FAISS flat index)
-                #             mcp_server_fixed.py (semantic_search)
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS embeddings_index (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        file_path TEXT NOT NULL,
-                        chunk_index INTEGER NOT NULL,
-                        embedding TEXT NOT NULL,           -- JSON array of floats
-                        metadata TEXT,
-                        FOREIGN KEY (file_path) REFERENCES file_metadata (file_path)
-                    )
-                ''')
-
-                # processing_stats — one row per indexing run, tracks outcomes and timing
-                # Created by: file_metadata_content.py (DatabaseManager.init_database)
-                # Written by: file_metadata_content.py (FileMetadataExtractor)
-                # Read by:    mcp_server_fixed.py (get_stats)
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS processing_stats (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        session_id TEXT NOT NULL,
-                        directory TEXT,
-                        total_files INTEGER,
-                        successful_files INTEGER,
-                        failed_files INTEGER,
-                        permission_denied_files INTEGER,
-                        size_limit_exceeded_files INTEGER,
-                        encoding_error_files INTEGER,
-                        file_not_found_files INTEGER,
-                        timeout_files INTEGER,
-                        unknown_error_files INTEGER,
-                        start_time TEXT,
-                        end_time TEXT,
-                        duration_seconds REAL,
-                        status TEXT DEFAULT 'completed',
-                        interrupted BOOLEAN DEFAULT FALSE
-                    )
-                ''')
-                # Add status/interrupted columns if missing (migration for existing databases)
-                for col, col_type in [('status', "TEXT DEFAULT 'completed'"), ('interrupted', 'BOOLEAN DEFAULT FALSE')]:
-                    try:
-                        cursor.execute(f'ALTER TABLE processing_stats ADD COLUMN {col} {col_type}')
-                    except sqlite3.OperationalError:
-                        pass  # Column already exists
-                # Add directory column if missing (migration for existing databases)
-                try:
-                    cursor.execute('ALTER TABLE processing_stats ADD COLUMN directory TEXT')
-                except sqlite3.OperationalError:
-                    pass  # Column already exists
-                cursor.execute('CREATE INDEX IF NOT EXISTS idx_stats_directory ON processing_stats(directory, start_time DESC)')
-                
-                # Create indexes for better search performance
-                cursor.execute('CREATE INDEX IF NOT EXISTS idx_file_path ON file_metadata(file_path)')
-                cursor.execute('CREATE INDEX IF NOT EXISTS idx_file_type ON file_metadata(file_type)')
-                cursor.execute('CREATE INDEX IF NOT EXISTS idx_directory ON file_metadata(directory)')
-                cursor.execute('CREATE INDEX IF NOT EXISTS idx_processing_status ON file_metadata(processing_status)')
-                cursor.execute('CREATE INDEX IF NOT EXISTS idx_content_file_path ON content_analysis(file_path)')
-                cursor.execute('CREATE INDEX IF NOT EXISTS idx_chunks_file_path ON text_chunks(file_path)')
-                
-                # content_fts — FTS5 virtual table over text chunks for full-text search
-                # Never written directly; populated via INSERT INTO content_fts in insert_content_analysis.
-                # Created by: file_metadata_content.py (DatabaseManager.init_database)
-                # Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
-                # Read by:    mcp_server_fixed.py (full_text_search)
-                cursor.execute('''
-                    CREATE VIRTUAL TABLE IF NOT EXISTS content_fts USING fts5(
-                        file_path,
-                        content,
-                        content_id UNINDEXED
-                    )
-                ''')
-
-                # Cascade delete trigger: when file_metadata row is deleted,
-                # automatically delete related rows in all dependent tables.
-                # WARNING: Not suitable for bulk deletes (1000s of rows) - can cause OOM.
-                # For bulk cleanup, delete the database and rescan instead.
-                cursor.execute('''
-                    CREATE TRIGGER IF NOT EXISTS cascade_delete_file
-                    AFTER DELETE ON file_metadata
-                    BEGIN
-                        DELETE FROM content_analysis WHERE file_path = OLD.file_path;
-                        DELETE FROM text_chunks WHERE file_path = OLD.file_path;
-                        DELETE FROM embeddings_index WHERE file_path = OLD.file_path;
-                        DELETE FROM content_fts WHERE file_path = OLD.file_path;
-                    END
-                ''')
-
-                conn.commit()
-                logger.info("Database initialized successfully")
-
-            self._upsert_readme()
-
+            conn = self.get_connection()
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM file_metadata")
+            logger.info("PostgreSQL database connection verified.")
         except Exception as e:
-            logger.error(f"Database initialization failed: {e}")
+            logger.error(f"PostgreSQL connection failed: {e}")
             raise
 
     def _upsert_readme(self):
-        """Insert a readme row for FILE_METADATA_SCHEMA_VERSION if one doesn't exist yet."""
-        content = _FILE_METADATA_README.get(
-            FILE_METADATA_SCHEMA_VERSION,
-            f"Schema version {FILE_METADATA_SCHEMA_VERSION}"
-        )
-        now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-        def _op():
-            with self.get_connection() as conn:
-                conn.execute(
-                    "INSERT OR IGNORE INTO readme (version, updated_at, content) VALUES (?, ?, ?)",
-                    (FILE_METADATA_SCHEMA_VERSION, now, content)
-                )
-                conn.commit()
-        self.execute_with_retry(_op)
+        """No-op: readme table not present in PostgreSQL schema."""
+        pass
     
     def insert_file_metadata(self, metadata: FileMetadata):
-        """Insert file metadata into database with retry logic"""
-        def _insert_operation():
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute('''
-                    INSERT OR REPLACE INTO file_metadata (
-                        file_path, file_name, directory, file_size, file_type,
-                        mime_type, created_date, modified_date, accessed_date,
-                        permissions, file_hash, is_text_file, encoding,
-                        processing_status, error_message
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    metadata.file_path, metadata.file_name, metadata.directory,
-                    metadata.file_size, metadata.file_type, metadata.mime_type,
-                    metadata.created_date, metadata.modified_date, metadata.accessed_date,
-                    metadata.permissions, metadata.file_hash, metadata.is_text_file,
-                    metadata.encoding, metadata.processing_status, metadata.error_message
-                ))
-                conn.commit()
-
+        """Upsert file metadata into PostgreSQL."""
+        def _op():
+            conn = self.get_connection()
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO file_metadata
+                            (file_path, file_hash, file_size, file_type, mime_type,
+                             is_text_file, encoding, processing_status, error_message,
+                             last_modified, last_indexed)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
+                        ON CONFLICT (file_path) DO UPDATE SET
+                            file_hash        = EXCLUDED.file_hash,
+                            file_size        = EXCLUDED.file_size,
+                            file_type        = EXCLUDED.file_type,
+                            mime_type        = EXCLUDED.mime_type,
+                            is_text_file     = EXCLUDED.is_text_file,
+                            encoding         = EXCLUDED.encoding,
+                            processing_status = EXCLUDED.processing_status,
+                            error_message    = EXCLUDED.error_message,
+                            last_modified    = EXCLUDED.last_modified,
+                            last_indexed     = now()
+                    """, (
+                        metadata.file_path, metadata.file_hash, metadata.file_size,
+                        metadata.file_type, metadata.mime_type, metadata.is_text_file,
+                        metadata.encoding, metadata.processing_status, metadata.error_message,
+                        metadata.modified_date,
+                    ))
         try:
-            self.execute_with_retry(_insert_operation)
+            self.execute_with_retry(_op)
         except Exception as e:
             logger.error(f"Error inserting file metadata for {metadata.file_path}: {e}")
             raise RuntimeError(f"Failed to insert file metadata for {metadata.file_path}: {e}") from e
 
     def get_file_modified_date(self, file_path: str) -> str:
-        """Get the modified_date for a file by file_path (returns '' if not found)"""
+        """Get last_modified for a file (returns '' if not found)."""
         try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute('SELECT modified_date FROM file_metadata WHERE file_path = ?', (file_path,))
-                row = cursor.fetchone()
+            conn = self.get_connection()
+            with conn.cursor() as cur:
+                cur.execute("SELECT last_modified FROM file_metadata WHERE file_path = %s", (file_path,))
+                row = cur.fetchone()
                 if row and row[0]:
-                    return row[0]
+                    return row[0].isoformat() if hasattr(row[0], 'isoformat') else str(row[0])
                 return ''
         except Exception as e:
-            logger.error(f"Error getting modified_date for {file_path}: {e}")
+            logger.error(f"Error getting modified date for {file_path}: {e}")
             return ''
 
     def get_content_analysis_by_hash(self, file_hash: str) -> Optional[Dict[str, Any]]:
-        """
-        Check if content with this hash has already been analyzed.
-        Returns the first matching content_analysis row as a dict, or None if not found.
-        Used to avoid re-processing identical file content that exists at a different path.
-        """
+        """Return first content_analysis row matching this hash, or None."""
         if not file_hash or file_hash in ('too_large', 'permission_denied', 'error', 'file_not_found'):
             return None
         try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute('''
-                    SELECT file_path, file_hash, word_count, char_count, language, tfidf_keywords,
-                           processing_status, error_message
+            conn = self.get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT file_path, file_hash, word_count, char_count, language,
+                           tfidf_keywords, processing_status, error_message
                     FROM content_analysis
-                    WHERE file_hash = ? AND processing_status = 'success'
+                    WHERE file_hash = %s AND processing_status = 'success'
                     LIMIT 1
-                ''', (file_hash,))
-                row = cursor.fetchone()
+                """, (file_hash,))
+                row = cur.fetchone()
                 if row:
                     return {
                         'source_file_path': row[0],
@@ -1175,9 +947,9 @@ class DatabaseManager:
                         'word_count': row[2],
                         'char_count': row[3],
                         'language': row[4],
-                        'tfidf_keywords': row[5],
+                        'tfidf_keywords': json.dumps(row[5]) if row[5] else None,
                         'processing_status': row[6],
-                        'error_message': row[7]
+                        'error_message': row[7],
                     }
                 return None
         except Exception as e:
@@ -1185,207 +957,190 @@ class DatabaseManager:
             return None
 
     def copy_content_analysis_to_path(self, source_hash: str, target_path: str) -> bool:
-        """
-        Copy existing content_analysis, text_chunks, embeddings_index, and content_fts
-        from a source file (by hash) to a new target path. Avoids expensive re-processing
-        when identical content is found at a new location.
-        Returns True if successful, False otherwise.
-        """
+        """Copy content_analysis + text_chunks from a source hash to a new file_path."""
         try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
+            conn = self.get_connection()
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        SELECT file_path FROM content_analysis
+                        WHERE file_hash = %s AND processing_status = 'success'
+                        LIMIT 1
+                    """, (source_hash,))
+                    row = cur.fetchone()
+                    if not row:
+                        return False
+                    source_path = row[0]
 
-                # Get source file path that has this hash
-                cursor.execute('''
-                    SELECT file_path FROM content_analysis
-                    WHERE file_hash = ? AND processing_status = 'success'
-                    LIMIT 1
-                ''', (source_hash,))
-                row = cursor.fetchone()
-                if not row:
-                    return False
-                source_path = row[0]
+                    cur.execute("""
+                        INSERT INTO content_analysis
+                            (file_path, file_hash, word_count, char_count, language,
+                             tfidf_keywords, processing_status, error_message, processing_time_s)
+                        SELECT %s, file_hash, word_count, char_count, language,
+                               tfidf_keywords, processing_status, error_message, 0.0
+                        FROM content_analysis WHERE file_path = %s
+                        ON CONFLICT (file_path) DO UPDATE SET
+                            file_hash = EXCLUDED.file_hash,
+                            word_count = EXCLUDED.word_count,
+                            char_count = EXCLUDED.char_count,
+                            language = EXCLUDED.language,
+                            tfidf_keywords = EXCLUDED.tfidf_keywords,
+                            processing_status = EXCLUDED.processing_status,
+                            error_message = EXCLUDED.error_message
+                    """, (target_path, source_path))
 
-                # Copy content_analysis row with new file_path
-                cursor.execute('''
-                    INSERT OR REPLACE INTO content_analysis
-                    (file_path, file_hash, word_count, char_count, language, tfidf_keywords,
-                     processing_status, error_message, processing_time_seconds)
-                    SELECT ?, file_hash, word_count, char_count, language, tfidf_keywords,
-                           processing_status, error_message, 0.0
-                    FROM content_analysis
-                    WHERE file_path = ?
-                ''', (target_path, source_path))
+                    cur.execute("DELETE FROM text_chunks WHERE file_path = %s", (target_path,))
+                    cur.execute("""
+                        INSERT INTO text_chunks
+                            (file_path, chunk_index, file_hash, chunk_strategy,
+                             chunk_size, total_chunks, content, embedding)
+                        SELECT %s, chunk_index, file_hash, chunk_strategy,
+                               chunk_size, total_chunks, content, embedding
+                        FROM text_chunks WHERE file_path = %s
+                    """, (target_path, source_path))
 
-                # Copy text_chunks
-                cursor.execute('DELETE FROM text_chunks WHERE file_path = ?', (target_path,))
-                cursor.execute('''
-                    INSERT INTO text_chunks (file_path, chunk_index, chunk_text, chunk_embedding)
-                    SELECT ?, chunk_index, chunk_text, chunk_embedding
-                    FROM text_chunks
-                    WHERE file_path = ?
-                ''', (target_path, source_path))
-
-                # Copy embeddings_index
-                cursor.execute('DELETE FROM embeddings_index WHERE file_path = ?', (target_path,))
-                cursor.execute('''
-                    INSERT INTO embeddings_index (file_path, chunk_index, embedding, metadata)
-                    SELECT ?, chunk_index, embedding, metadata
-                    FROM embeddings_index
-                    WHERE file_path = ?
-                ''', (target_path, source_path))
-
-                # Copy content_fts
-                cursor.execute('DELETE FROM content_fts WHERE file_path = ?', (target_path,))
-                cursor.execute('''
-                    INSERT INTO content_fts (file_path, content, content_id)
-                    SELECT ?, content, content_id
-                    FROM content_fts
-                    WHERE file_path = ?
-                ''', (target_path, source_path))
-
-                conn.commit()
-                logger.info(f"Copied content analysis from {source_path} to {target_path} (hash: {source_hash})")
-                return True
-
+                    logger.info(f"Copied content analysis from {source_path} to {target_path}")
+                    return True
         except Exception as e:
             logger.error(f"Error copying content analysis to {target_path}: {e}")
             return False
 
     def insert_content_analysis(self, analysis: ContentAnalysis, processing_time_seconds: float = None):
-        """Insert content analysis into database with retry logic"""
-        def _insert_operation():
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                # Insert main content analysis
-                cursor.execute('''
-                    INSERT OR REPLACE INTO content_analysis (
-                        file_path, file_hash, word_count, char_count, language,
-                        tfidf_keywords, processing_status, error_message, processing_time_seconds
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    analysis.file_path, analysis.file_hash, analysis.word_count,
-                    analysis.char_count, analysis.language, json.dumps(analysis.tfidf_keywords),
-                    analysis.processing_status, analysis.error_message,
-                    processing_time_seconds
-                ))
-                # Insert text chunks
-                cursor.execute('DELETE FROM text_chunks WHERE file_path = ?', (analysis.file_path,))
-                cursor.execute('DELETE FROM embeddings_index WHERE file_path = ?', (analysis.file_path,))
-                for i, chunk in enumerate(analysis.chunks):
-                    embedding_blob = None
-                    if i < len(analysis.embeddings):
-                        try:
-                            embedding_blob = np.array(analysis.embeddings[i]).tobytes()
-                            # Also insert into embeddings_index as JSON array for FAISS
-                            embedding_json = json.dumps(analysis.embeddings[i])
-                            cursor.execute('''
-                                INSERT INTO embeddings_index (file_path, chunk_index, embedding, metadata)
-                                VALUES (?, ?, ?, ?)
-                            ''', (analysis.file_path, i, embedding_json, None))
-                        except Exception as e:
-                            logger.warning(f"Error serializing embedding for chunk {i}: {e}")
-                    cursor.execute('''
-                        INSERT INTO text_chunks (file_path, chunk_index, chunk_text, chunk_embedding)
-                        VALUES (?, ?, ?, ?)
-                    ''', (analysis.file_path, i, chunk, embedding_blob))
-                # Insert into FTS table
-                cursor.execute('DELETE FROM content_fts WHERE file_path = ?', (analysis.file_path,))
-                if analysis.chunks:
-                    full_content = ' '.join(analysis.chunks)
-                    cursor.execute('''
-                        INSERT INTO content_fts (file_path, content, content_id)
-                        VALUES (?, ?, ?)
-                    ''', (analysis.file_path, full_content, analysis.file_hash))
-                conn.commit()
+        """Upsert content analysis + text chunks (with embeddings) into PostgreSQL."""
+        def _op():
+            conn = self.get_connection()
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO content_analysis
+                            (file_path, file_hash, word_count, char_count, language,
+                             tfidf_keywords, processing_status, error_message, processing_time_s)
+                        VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s)
+                        ON CONFLICT (file_path) DO UPDATE SET
+                            file_hash         = EXCLUDED.file_hash,
+                            word_count        = EXCLUDED.word_count,
+                            char_count        = EXCLUDED.char_count,
+                            language          = EXCLUDED.language,
+                            tfidf_keywords    = EXCLUDED.tfidf_keywords,
+                            processing_status = EXCLUDED.processing_status,
+                            error_message     = EXCLUDED.error_message,
+                            processing_time_s = EXCLUDED.processing_time_s,
+                            analysis_date     = now()
+                    """, (
+                        analysis.file_path, analysis.file_hash,
+                        analysis.word_count, analysis.char_count, analysis.language,
+                        json.dumps(analysis.tfidf_keywords),
+                        analysis.processing_status, analysis.error_message,
+                        processing_time_seconds,
+                    ))
 
+                    cur.execute("DELETE FROM text_chunks WHERE file_path = %s", (analysis.file_path,))
+                    total = len(analysis.chunks)
+                    for i, chunk in enumerate(analysis.chunks):
+                        embedding_vec = None
+                        if i < len(analysis.embeddings) and analysis.embeddings[i]:
+                            try:
+                                emb = analysis.embeddings[i]
+                                embedding_vec = "[" + ",".join(f"{v:.8f}" for v in emb) + "]"
+                            except Exception as emb_err:
+                                logger.warning(f"Could not serialize embedding for chunk {i}: {emb_err}")
+                        cur.execute("""
+                            INSERT INTO text_chunks
+                                (file_path, chunk_index, file_hash, chunk_strategy,
+                                 chunk_size, total_chunks, content, embedding)
+                            VALUES (%s, %s, %s, 'prose_discrete', %s, %s, %s, %s::vector)
+                        """, (
+                            analysis.file_path, i, analysis.file_hash,
+                            len(chunk), total, chunk,
+                            embedding_vec,
+                        ))
         try:
-            self.execute_with_retry(_insert_operation)
+            self.execute_with_retry(_op)
         except Exception as e:
             logger.error(f"Error inserting content analysis for {analysis.file_path}: {e}")
             raise RuntimeError(f"Failed to insert content analysis for {analysis.file_path}: {e}") from e
     
     def update_directory_stats(self, directory_path: str) -> bool:
-        """Update directory statistics with error handling"""
+        """Upsert directory statistics derived from file_metadata."""
         try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                
-                # Get file count and total size for directory
-                cursor.execute('''
-                    SELECT COUNT(*), COALESCE(SUM(file_size), 0)
-                    FROM file_metadata
-                    WHERE directory = ?
-                ''', (directory_path,))
-                
-                result = cursor.fetchone()
-                if result:
-                    file_count, total_size = result
-                    
-                    cursor.execute('''
-                        INSERT OR REPLACE INTO directory_structure (
-                            directory_path, file_count, total_size, last_updated
-                        ) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-                    ''', (directory_path, file_count, total_size))
-                    
-                    conn.commit()
-                    return True
-                return False
+            conn = self.get_connection()
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        SELECT COUNT(*), COALESCE(SUM(file_size), 0)
+                        FROM file_metadata
+                        WHERE file_path LIKE %s
+                    """, (directory_path.rstrip('/') + '/%',))
+                    row = cur.fetchone()
+                    if row:
+                        cur.execute("""
+                            INSERT INTO directory_structure
+                                (directory_path, file_count, total_size, last_scanned)
+                            VALUES (%s, %s, %s, now())
+                            ON CONFLICT (directory_path) DO UPDATE SET
+                                file_count   = EXCLUDED.file_count,
+                                total_size   = EXCLUDED.total_size,
+                                last_scanned = now()
+                        """, (directory_path, row[0], row[1]))
+                        return True
+            return False
         except Exception as e:
             logger.error(f"Error updating directory stats for {directory_path}: {e}")
             return False
     
     def record_processing_stats(self, session_id: str, stats: Dict[str, Any], interrupted: bool = False) -> bool:
-        """Record processing statistics"""
+        """Record processing statistics into PostgreSQL."""
         try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute('''
-                    INSERT INTO processing_stats (
-                        session_id, directory, total_files, successful_files, failed_files,
-                        permission_denied_files, size_limit_exceeded_files,
-                        encoding_error_files, file_not_found_files, timeout_files, unknown_error_files,
-                        start_time, end_time, duration_seconds, status, interrupted
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    session_id, stats.get('directory'),
-                    stats.get('total_files', 0), stats.get('successful_files', 0),
-                    stats.get('failed_files', 0), stats.get('permission_denied_files', 0),
-                    stats.get('size_limit_exceeded_files', 0), stats.get('encoding_error_files', 0),
-                    stats.get('file_not_found_files', 0), stats.get('timeout_files', 0), stats.get('unknown_error_files', 0),
-                    stats.get('start_time'), stats.get('end_time'), stats.get('duration_seconds', 0),
-                    'interrupted' if interrupted else 'completed', interrupted
-                ))
-                conn.commit()
-                return True
+            conn = self.get_connection()
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO processing_stats
+                            (session_id, start_time, end_time, files_processed,
+                             files_errored, interrupted, metadata)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
+                    """, (
+                        session_id,
+                        stats.get('start_time'),
+                        stats.get('end_time'),
+                        stats.get('successful_files', 0),
+                        stats.get('failed_files', 0),
+                        interrupted,
+                        json.dumps({
+                            'directory': stats.get('directory'),
+                            'total_files': stats.get('total_files', 0),
+                            'permission_denied_files': stats.get('permission_denied_files', 0),
+                            'size_limit_exceeded_files': stats.get('size_limit_exceeded_files', 0),
+                            'encoding_error_files': stats.get('encoding_error_files', 0),
+                            'file_not_found_files': stats.get('file_not_found_files', 0),
+                            'timeout_files': stats.get('timeout_files', 0),
+                            'unknown_error_files': stats.get('unknown_error_files', 0),
+                            'duration_seconds': stats.get('duration_seconds', 0),
+                            'status': 'interrupted' if interrupted else 'completed',
+                        }),
+                    ))
+                    return True
         except Exception as e:
             logger.error(f"Error recording processing stats: {e}")
             return False
 
     def get_last_scan_time(self, directory: str) -> Optional[datetime]:
-        """Get the start time of the last successful scan for a directory.
-
-        Returns the start_time of the most recent scan where at least some files
-        were successfully processed. Returns None if no previous scan exists.
-
-        Used during discovery phase to skip files that haven't changed since last scan.
-        """
+        """Return start_time of the most recent successful scan covering this directory."""
         try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                # Find most recent scan of this directory (or parent directory) with successful files
-                # We check for parent directories to handle rescans of subdirectories
-                cursor.execute('''
+            conn = self.get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
                     SELECT start_time FROM processing_stats
-                    WHERE directory IS NOT NULL
-                      AND (directory = ? OR ? LIKE directory || '%')
-                      AND successful_files > 0
-                    ORDER BY start_time DESC
+                    WHERE metadata->>'directory' IS NOT NULL
+                      AND (metadata->>'directory' = %s
+                           OR %s LIKE (metadata->>'directory') || '%%')
+                      AND files_processed > 0
+                    ORDER BY start_time DESC NULLS LAST
                     LIMIT 1
-                ''', (directory, directory))
-                row = cursor.fetchone()
+                """, (directory, directory))
+                row = cur.fetchone()
                 if row and row[0]:
-                    return datetime.fromisoformat(row[0])
+                    return row[0] if isinstance(row[0], datetime) else datetime.fromisoformat(str(row[0]))
                 return None
         except Exception as e:
             logger.warning(f"Error getting last scan time for {directory}: {e}")
@@ -1836,7 +1591,8 @@ class FileMetadataExtractor:
             logger.info("Testing database connectivity...")
             try:
                 with self.db_manager.get_connection() as conn:
-                    conn.execute("SELECT 1")
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT 1")
                 logger.info("Database connectivity confirmed")
             except Exception as e:
                 raise RuntimeError(f"Database connectivity failed: {e}")
