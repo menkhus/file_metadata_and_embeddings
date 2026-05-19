@@ -13,11 +13,11 @@ A pre-indexed knowledge base of your local files, exposed as MCP tools. **Use it
 | Understand a **specific file's** content profile | `get_file_info` | Keywords, topics, chunk count, metadata |
 | Read a file's **actual content** via chunks | `get_file_chunks` | Read indexed content without filesystem access |
 | Explore **directory structure** of indexed files | `list_directories` | Where are files concentrated? |
-| Get an **overview** of what's indexed | `get_stats` | Total files, types, sizes, FAISS status |
+| Get an **overview** of what's indexed | `get_stats` | Total files, types, sizes, embedding coverage |
 
 ## Search mode comparison
 
-- **`semantic_search`** — meaning-based (FAISS embeddings). Finds conceptual matches even with different wording. Best for open-ended exploration.
+- **`semantic_search`** — meaning-based (pgvector cosine similarity, all-MiniLM-L6-v2). Finds conceptual matches even with different wording. Best for open-ended exploration.
 - **`full_text_search`** — exact/phrase/boolean (FTS5). Best when you know what words to look for. Supports `"exact phrase"`, `AND`, `OR`, `NOT`.
 - **`search_by_keywords`** — TF-IDF statistical importance. Best for finding files *about* a topic vs files that merely mention it.
 - **`search_files`** — metadata only (no content search). Best for filtering by file type, date, size, or name pattern.
@@ -41,16 +41,16 @@ These tools form a learning loop that improves source suggestions over time:
 
 ## What's indexed
 
-- **Database:** `~/data/file_metadata.sqlite3`
-- **Check what's indexed:** `get_stats` returns total files, types, sizes, and FAISS index status
-- **FAISS index** may need rebuilding after adding many new files
+- **Database:** PostgreSQL 17 (`localhost:5432`, db: `file_metadata`) + pgvector 0.8.2
+- **Check what's indexed:** `get_stats` returns total files, types, sizes, and embedding coverage
+- **Embeddings:** all-MiniLM-L6-v2 (384-dim), 413,747 chunks fully embedded via HNSW index
 
 ## State of the Art — Apply This Here
 
-The current implementation uses hand-rolled TF-IDF, FAISS flat index, SQLite FTS5, and Python. These were correct for prototyping. The production target is:
+The current implementation uses hand-rolled TF-IDF, pgvector HNSW, PostgreSQL tsvector, and Python. Phase 2 (SQLite+FAISS) is complete. The production target is:
 
 - **Retrieval:** SPLADE or BGE-M3 (sparse+dense unified) over tantivy (Rust, BM25-native) — not hand-rolled IDF correction
-- **Vector storage:** qdrant (Rust, production-grade) — not FAISS flat index in Python
+- **Vector storage:** qdrant (Rust, production-grade) — pgvector is correct for Postgres but not production-grade at scale
 - **Graph structure:** GraphRAG-style entity extraction over the corpus — not manual node upserts
 - **Chunking:** semantic sentence-boundary chunking with overlap metadata — AIOptimizedChunker exists but is not deployed
 - **Session focus model:** Rocchio-style relevance feedback with temporal decay — not a binary seen/unseen set
