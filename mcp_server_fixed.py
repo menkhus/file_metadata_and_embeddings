@@ -1,20 +1,16 @@
 #!/usr/bin/env python3
 """
-MCP Server for File Metadata Tool - Full Feature Version
-
-This MCP server exposes the file metadata database to LLMs via standardized tools.
-Provides comprehensive access to file metadata, content search, keywords, topics,
-and knowledge graph learning from grounding decisions.
+MCP Server for File Metadata Tool - PostgreSQL + pgvector Edition
 
 Available tools:
-- search_files: Search by metadata (name, type, date, size, directory, permissions)
-- full_text_search: FTS5 content search with snippets
+- search_files: Search by metadata (name, type, date, size, directory)
+- full_text_search: tsvector content search with snippets
 - get_file_info: Full metadata + keywords + topics for a file
 - get_file_chunks: Retrieve text chunks for a file
 - list_directories: Browse indexed directories with stats
 - search_by_keywords: Find files by TF-IDF keywords
 - get_stats: Database statistics and overview
-- semantic_search: FAISS vector similarity search (when index available)
+- semantic_search: pgvector cosine similarity search
 - log_autograph: Log grounding choices to knowledge graph
 - query_autographs: Query KG for patterns related to a context
 - autograph_suggest: Get auto-suggestions based on learned patterns
@@ -22,13 +18,13 @@ Available tools:
 """
 
 import asyncio
-import sqlite3
-import json
 import os
 import sys
-from pathlib import Path
 from typing import Any, Dict, List, Optional
-import numpy as np
+
+import psycopg2
+import psycopg2.pool
+import psycopg2.extras
 
 # MCP imports
 from mcp.server import Server
@@ -36,31 +32,18 @@ from mcp.server.models import InitializationOptions
 from mcp.server.lowlevel import NotificationOptions
 from mcp.server.stdio import stdio_server
 from mcp.types import (
-    CallToolRequest,
     CallToolResult,
-    ListToolsRequest,
     TextContent,
     Tool,
 )
 
-# Database path - can be overridden via environment variable
-DB_PATH = os.environ.get('FILE_METADATA_DB', os.path.expanduser('~/data/file_metadata.sqlite3'))
-
-# FAISS data directory - for two-tier index architecture
-FAISS_DATA_DIR = os.environ.get('FAISS_DATA_DIR', os.path.expanduser('~/data'))
+_PG_DSN = (
+    "host=localhost dbname=file_metadata user=postgres "
+    f"password={os.environ.get('DB_PASSWORD', '')}"
+)
 
 # Knowledge graph directory - for autograph learning
 KG_PATH = os.environ.get('KG_PATH', os.path.join(os.path.dirname(__file__), 'knowledge_graph'))
-
-# Try to load FAISS and sentence-transformers (optional)
-try:
-    import faiss
-    from sentence_transformers import SentenceTransformer
-    from faiss_index_manager import TwoTierFAISSManager
-    FAISS_AVAILABLE = True
-except ImportError:
-    FAISS_AVAILABLE = False
-    TwoTierFAISSManager = None
 
 # Try to load autograph manager for knowledge graph (optional)
 try:
@@ -72,377 +55,371 @@ except ImportError:
 
 
 class FileMetadataDB:
-    """Database interface for file metadata operations"""
+    """PostgreSQL + pgvector database interface for file metadata operations"""
 
-    def __init__(self, db_path: str):
-        self.db_path = db_path
-        if not os.path.exists(db_path):
-            raise FileNotFoundError(f"Database not found at {db_path}")
-
-        # Two-tier FAISS index manager (loaded lazily)
-        self.faiss_manager: Optional[TwoTierFAISSManager] = None
-        self.sentence_model = None
-        self._faiss_load_attempted = False
-
-    def _load_faiss_index(self) -> bool:
-        """Load two-tier FAISS index manager if available"""
-        if not FAISS_AVAILABLE:
-            return False
-
-        if self.faiss_manager is not None:
-            return True
-
-        if self._faiss_load_attempted:
-            return False
-
-        self._faiss_load_attempted = True
-
+    def __init__(self):
+        self._pool = psycopg2.pool.ThreadedConnectionPool(1, 5, dsn=_PG_DSN)
+        self._sentence_model = None
+        self._model_load_attempted = False
+        # Verify connection
+        conn = self._pool.getconn()
         try:
-            self.faiss_manager = TwoTierFAISSManager(data_dir=FAISS_DATA_DIR)
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM file_metadata")
+        finally:
+            self._pool.putconn(conn)
 
-            # Check for legacy index and migrate if needed
-            self.faiss_manager.migrate_from_legacy()
+    def _get_conn(self):
+        return self._pool.getconn()
 
-            stats = self.faiss_manager.get_stats()
-            if stats['total_vectors'] == 0:
-                print("Note: FAISS indexes are empty. Run build_faiss_index.py to build.", file=sys.stderr)
-                return False
+    def _put_conn(self, conn):
+        self._pool.putconn(conn)
 
-            # Check staleness
-            with self.get_connection() as conn:
-                cursor = conn.execute("SELECT COUNT(*) as count FROM text_chunks")
-                current_chunks = cursor.fetchone()['count']
-                if current_chunks > stats['total_vectors']:
-                    print(f"Note: FAISS index may be stale ({stats['total_vectors']:,} vectors, but DB has {current_chunks:,} chunks). "
-                          f"Run build_faiss_index.py --add-only to update.", file=sys.stderr)
-
-            self.sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+    def _load_model(self) -> bool:
+        """Lazy-load sentence transformer model for semantic search."""
+        if self._model_load_attempted:
+            return self._sentence_model is not None
+        self._model_load_attempted = True
+        try:
+            from sentence_transformers import SentenceTransformer
+            self._sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+            print("Sentence transformer model loaded.", file=sys.stderr)
             return True
         except Exception as e:
-            print(f"Error loading FAISS index: {e}", file=sys.stderr)
-            self.faiss_manager = None
+            print(f"Could not load sentence transformer: {e}", file=sys.stderr)
             return False
+
+    def is_semantic_available(self) -> bool:
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 FROM text_chunks WHERE embedding IS NOT NULL LIMIT 1")
+                return cur.fetchone() is not None
+        finally:
+            self._put_conn(conn)
 
     def semantic_search(self, query: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """Perform semantic similarity search using two-tier FAISS indexes"""
-        if not self._load_faiss_index():
+        """Cosine similarity search using pgvector."""
+        if not self._load_model() or self._sentence_model is None:
             return []
-
+        embedding = self._sentence_model.encode([query])[0].tolist()
+        vec_str = "[" + ",".join(str(v) for v in embedding) + "]"
+        conn = self._get_conn()
         try:
-            # Encode query
-            query_embedding = self.sentence_model.encode([query])[0]
-            query_embedding = np.array(query_embedding).astype('float32')
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT
+                        tc.file_path,
+                        tc.chunk_index,
+                        tc.content,
+                        1 - (tc.embedding <=> %s::vector) AS similarity,
+                        fm.file_type,
+                        fm.last_modified
+                    FROM text_chunks tc
+                    JOIN file_metadata fm ON tc.file_path = fm.file_path
+                    WHERE tc.embedding IS NOT NULL
+                    ORDER BY tc.embedding <=> %s::vector
+                    LIMIT %s
+                """, [vec_str, vec_str, limit])
+                rows = cur.fetchall()
+        finally:
+            self._put_conn(conn)
 
-            # Search both indexes via manager
-            search_results = self.faiss_manager.search(query_embedding, top_k=limit)
-
-            results = []
-            for r in search_results:
-                results.append({
-                    'file_path': r.file_path,
-                    'file_name': r.metadata.get('file_name', ''),
-                    'file_type': r.metadata.get('file_type', ''),
-                    'modified_date': r.metadata.get('modified_date', ''),
-                    'chunk_index': r.chunk_index,
-                    'chunk_text': r.chunk_text[:200] if r.chunk_text else '',  # Preview
-                    'similarity': r.similarity_score,
-                    'tier': r.tier,  # 'major' or 'minor'
-                    'tfidf_keywords': r.metadata.get('tfidf_keywords', [])[:5]
-                })
-
-            return results
-        except Exception as e:
-            print(f"Semantic search error: {e}", file=sys.stderr)
-            return []
-
-    def is_faiss_available(self) -> bool:
-        """Check if FAISS index is available"""
-        return self._load_faiss_index()
-
-    def get_faiss_stats(self) -> Optional[Dict[str, Any]]:
-        """Get FAISS index statistics"""
-        if not self._load_faiss_index():
-            return None
-        return self.faiss_manager.get_stats()
-
-    def get_connection(self) -> sqlite3.Connection:
-        """Get database connection"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+        return [
+            {
+                'file_path': row['file_path'],
+                'file_name': os.path.basename(row['file_path']),
+                'file_type': row['file_type'] or '',
+                'modified_date': str(row['last_modified'])[:10] if row['last_modified'] else '',
+                'chunk_index': row['chunk_index'],
+                'chunk_text': (row['content'] or '')[:200],
+                'similarity': float(row['similarity']),
+            }
+            for row in rows
+        ]
 
     def search_files_by_metadata(self, **kwargs) -> List[Dict[str, Any]]:
-        """Search files by metadata criteria"""
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                query = "SELECT * FROM file_metadata WHERE 1=1"
+                params: List[Any] = []
 
-        with self.get_connection() as conn:
-            query = "SELECT * FROM file_metadata WHERE 1=1"
-            params = []
+                if kwargs.get('name_pattern'):
+                    query += " AND file_path ILIKE %s"
+                    params.append(f"%{kwargs['name_pattern']}%")
 
-            if kwargs.get('name_pattern'):
-                query += " AND file_name LIKE ?"
-                params.append(f"%{kwargs['name_pattern']}%")
+                if kwargs.get('file_type'):
+                    query += " AND (file_type ILIKE %s OR mime_type ILIKE %s)"
+                    params.extend([f"%{kwargs['file_type']}%", f"%{kwargs['file_type']}%"])
 
-            if kwargs.get('file_type'):
-                query += " AND (file_type LIKE ? OR mime_type LIKE ?)"
-                params.extend([f"%{kwargs['file_type']}%", f"%{kwargs['file_type']}%"])
+                if kwargs.get('directory'):
+                    query += " AND file_path LIKE %s"
+                    params.append(f"{kwargs['directory']}%")
 
-            if kwargs.get('directory'):
-                query += " AND directory LIKE ?"
-                params.append(f"%{kwargs['directory']}%")
+                if kwargs.get('modified_since'):
+                    query += " AND last_modified >= %s::timestamptz"
+                    params.append(kwargs['modified_since'])
 
-            if kwargs.get('created_since'):
-                query += " AND created_date >= ?"
-                params.append(kwargs['created_since'])
+                if kwargs.get('min_size'):
+                    query += " AND file_size >= %s"
+                    params.append(kwargs['min_size'])
 
-            if kwargs.get('modified_since'):
-                query += " AND modified_date >= ?"
-                params.append(kwargs['modified_since'])
+                if kwargs.get('max_size'):
+                    query += " AND file_size <= %s"
+                    params.append(kwargs['max_size'])
 
-            if kwargs.get('min_size'):
-                query += " AND file_size >= ?"
-                params.append(kwargs['min_size'])
+                query += " ORDER BY last_modified DESC NULLS LAST LIMIT %s"
+                params.append(kwargs.get('limit', 20))
 
-            if kwargs.get('max_size'):
-                query += " AND file_size <= ?"
-                params.append(kwargs['max_size'])
+                cur.execute(query, params)
+                rows = cur.fetchall()
+        finally:
+            self._put_conn(conn)
 
-            if kwargs.get('permissions'):
-                query += " AND permissions = ?"
-                params.append(kwargs['permissions'])
-
-            query += " ORDER BY modified_date DESC LIMIT ?"
-            params.append(kwargs.get('limit', 20))
-
-            cursor = conn.execute(query, params)
-            results = []
-
-            for row in cursor:
-                results.append({
-                    "file_path": row['file_path'],
-                    "file_name": row['file_name'],
-                    "directory": row['directory'],
-                    "file_size": row['file_size'],
-                    "file_type": row['file_type'],
-                    "mime_type": row['mime_type'],
-                    "created_date": row['created_date'],
-                    "modified_date": row['modified_date'],
-                    "permissions": row['permissions']
-                })
-
-            return results
+        return [
+            {
+                'file_path': row['file_path'],
+                'file_name': os.path.basename(row['file_path']),
+                'directory': os.path.dirname(row['file_path']),
+                'file_size': row['file_size'] or 0,
+                'file_type': row['file_type'] or '',
+                'mime_type': row['mime_type'] or '',
+                'modified_date': str(row['last_modified'])[:19] if row['last_modified'] else '',
+            }
+            for row in rows
+        ]
 
     def full_text_search(self, query: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """Perform full-text search using FTS5"""
+        """Full-text search over chunk content using tsvector + websearch_to_tsquery."""
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
+                    WITH ranked AS (
+                        SELECT
+                            tc.file_path, tc.content, fm.file_type, fm.last_modified,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY tc.file_path ORDER BY tc.chunk_index
+                            ) AS rn
+                        FROM text_chunks tc
+                        JOIN file_metadata fm ON tc.file_path = fm.file_path
+                        WHERE to_tsvector('english', tc.content)
+                              @@ websearch_to_tsquery('english', %s)
+                    )
+                    SELECT
+                        file_path,
+                        ts_headline('english', content,
+                            websearch_to_tsquery('english', %s),
+                            'MaxWords=20, MinWords=5, StartSel=>>>, StopSel=<<<'
+                        ) AS snippet,
+                        file_type,
+                        last_modified
+                    FROM ranked
+                    WHERE rn = 1
+                    ORDER BY last_modified DESC NULLS LAST
+                    LIMIT %s
+                """, [query, query, limit])
+                rows = cur.fetchall()
+        finally:
+            self._put_conn(conn)
 
-        with self.get_connection() as conn:
-            sql = """
-            SELECT
-                fts.file_path,
-                snippet(content_fts, 1, '>>>', '<<<', '...', 64) as snippet,
-                fm.file_name,
-                fm.file_type,
-                fm.modified_date
-            FROM content_fts fts
-            LEFT JOIN file_metadata fm ON fts.file_path = fm.file_path
-            WHERE content_fts MATCH ?
-            LIMIT ?
-            """
-
-            cursor = conn.execute(sql, [query, limit])
-            results = []
-
-            for row in cursor:
-                results.append({
-                    'file_path': row['file_path'],
-                    'file_name': row['file_name'],
-                    'file_type': row['file_type'],
-                    'modified_date': row['modified_date'],
-                    'snippet': row['snippet']
-                })
-
-            return results
+        return [
+            {
+                'file_path': row['file_path'],
+                'file_name': os.path.basename(row['file_path']),
+                'file_type': row['file_type'] or '',
+                'modified_date': str(row['last_modified'])[:19] if row['last_modified'] else '',
+                'snippet': row['snippet'],
+            }
+            for row in rows
+        ]
 
     def get_file_info(self, file_path: str) -> Optional[Dict[str, Any]]:
-        """Get full metadata, keywords, and topics for a specific file"""
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("SELECT * FROM file_metadata WHERE file_path = %s", [file_path])
+                fm = cur.fetchone()
+                if not fm:
+                    return None
 
-        with self.get_connection() as conn:
-            # Get file metadata
-            cursor = conn.execute(
-                "SELECT * FROM file_metadata WHERE file_path = ?",
-                [file_path]
-            )
-            row = cursor.fetchone()
+                result = dict(fm)
+                result['file_name'] = os.path.basename(file_path)
+                result['directory'] = os.path.dirname(file_path)
+                result['modified_date'] = str(fm['last_modified'])[:19] if fm['last_modified'] else ''
 
-            if not row:
-                return None
+                cur.execute("""
+                    SELECT word_count, char_count, language, keywords, tfidf_keywords, lda_topics
+                    FROM content_analysis WHERE file_path = %s
+                """, [file_path])
+                analysis = cur.fetchone()
+                if analysis:
+                    result['word_count'] = analysis['word_count']
+                    result['char_count'] = analysis['char_count']
+                    result['language'] = analysis['language']
+                    result['keywords'] = analysis['keywords'] or []
+                    result['tfidf_keywords'] = analysis['tfidf_keywords'] or []
+                    result['lda_topics'] = analysis['lda_topics'] or []
 
-            result = dict(row)
-
-            # Get content analysis (keywords, topics)
-            cursor = conn.execute(
-                """SELECT word_count, char_count, language, keywords,
-                          tfidf_keywords, lda_topics
-                   FROM content_analysis WHERE file_path = ?""",
-                [file_path]
-            )
-            analysis = cursor.fetchone()
-
-            if analysis:
-                result['word_count'] = analysis['word_count']
-                result['char_count'] = analysis['char_count']
-                result['language'] = analysis['language']
-                result['keywords'] = json.loads(analysis['keywords']) if analysis['keywords'] else []
-                result['tfidf_keywords'] = json.loads(analysis['tfidf_keywords']) if analysis['tfidf_keywords'] else []
-                result['lda_topics'] = json.loads(analysis['lda_topics']) if analysis['lda_topics'] else []
-
-            # Get chunk count
-            cursor = conn.execute(
-                "SELECT COUNT(*) as chunk_count FROM text_chunks WHERE file_path = ?",
-                [file_path]
-            )
-            result['chunk_count'] = cursor.fetchone()['chunk_count']
-
-            return result
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM text_chunks WHERE file_path = %s", [file_path])
+                result['chunk_count'] = cur.fetchone()[0]
+        finally:
+            self._put_conn(conn)
+        return result
 
     def get_file_chunks(self, file_path: str, chunk_index: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Get text chunks for a file"""
-
-        with self.get_connection() as conn:
-            if chunk_index is not None:
-                cursor = conn.execute(
-                    """SELECT chunk_index, chunk_text
-                       FROM text_chunks WHERE file_path = ? AND chunk_index = ?""",
-                    [file_path, chunk_index]
-                )
-            else:
-                cursor = conn.execute(
-                    """SELECT chunk_index, chunk_text
-                       FROM text_chunks WHERE file_path = ? ORDER BY chunk_index""",
-                    [file_path]
-                )
-
-            return [{'chunk_index': row['chunk_index'], 'chunk_text': row['chunk_text']}
-                    for row in cursor]
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                if chunk_index is not None:
+                    cur.execute("""
+                        SELECT chunk_index, content AS chunk_text
+                        FROM text_chunks WHERE file_path = %s AND chunk_index = %s
+                    """, [file_path, chunk_index])
+                else:
+                    cur.execute("""
+                        SELECT chunk_index, content AS chunk_text
+                        FROM text_chunks WHERE file_path = %s ORDER BY chunk_index
+                    """, [file_path])
+                rows = cur.fetchall()
+        finally:
+            self._put_conn(conn)
+        return [{'chunk_index': r['chunk_index'], 'chunk_text': r['chunk_text']} for r in rows]
 
     def list_directories(self, parent: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
-        """List indexed directories with file counts"""
-
-        with self.get_connection() as conn:
-            if parent:
-                cursor = conn.execute(
-                    """SELECT directory, COUNT(*) as file_count,
-                              SUM(file_size) as total_size
-                       FROM file_metadata
-                       WHERE directory LIKE ?
-                       GROUP BY directory
-                       ORDER BY file_count DESC LIMIT ?""",
-                    [f"{parent}%", limit]
-                )
-            else:
-                cursor = conn.execute(
-                    """SELECT directory, COUNT(*) as file_count,
-                              SUM(file_size) as total_size
-                       FROM file_metadata
-                       GROUP BY directory
-                       ORDER BY file_count DESC LIMIT ?""",
-                    [limit]
-                )
-
-            return [{'directory': row['directory'],
-                     'file_count': row['file_count'],
-                     'total_size': row['total_size']}
-                    for row in cursor]
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                if parent:
+                    cur.execute("""
+                        SELECT
+                            regexp_replace(file_path, '/[^/]+$', '') AS directory,
+                            COUNT(*) AS file_count,
+                            SUM(file_size) AS total_size
+                        FROM file_metadata
+                        WHERE file_path LIKE %s
+                        GROUP BY 1
+                        ORDER BY file_count DESC
+                        LIMIT %s
+                    """, [f"{parent}%", limit])
+                else:
+                    cur.execute("""
+                        SELECT
+                            regexp_replace(file_path, '/[^/]+$', '') AS directory,
+                            COUNT(*) AS file_count,
+                            SUM(file_size) AS total_size
+                        FROM file_metadata
+                        GROUP BY 1
+                        ORDER BY file_count DESC
+                        LIMIT %s
+                    """, [limit])
+                rows = cur.fetchall()
+        finally:
+            self._put_conn(conn)
+        return [
+            {'directory': r['directory'], 'file_count': r['file_count'], 'total_size': r['total_size']}
+            for r in rows
+        ]
 
     def search_by_keywords(self, keywords: List[str], limit: int = 20) -> List[Dict[str, Any]]:
-        """Find files matching TF-IDF keywords"""
+        """Find files by TF-IDF keywords stored as JSONB."""
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                conditions = []
+                params: List[Any] = []
+                for kw in keywords:
+                    conditions.append("""(
+                        ca.keywords @> jsonb_build_array(%s::text)
+                        OR EXISTS (
+                            SELECT 1 FROM jsonb_array_elements(ca.tfidf_keywords) pair
+                            WHERE pair->>0 = %s
+                        )
+                    )""")
+                    params.extend([kw, kw])
 
-        with self.get_connection() as conn:
-            # Build query to search in keywords JSON
-            conditions = []
-            params = []
-            for kw in keywords:
-                conditions.append("(ca.keywords LIKE ? OR ca.tfidf_keywords LIKE ?)")
-                params.extend([f'%"{kw}"%', f'%"{kw}"%'])
+                where = ' OR '.join(conditions) if conditions else 'TRUE'
+                cur.execute(f"""
+                    SELECT fm.file_path, fm.file_type, fm.last_modified,
+                           ca.keywords, ca.tfidf_keywords
+                    FROM file_metadata fm
+                    JOIN content_analysis ca ON fm.file_path = ca.file_path
+                    WHERE {where}
+                    ORDER BY fm.last_modified DESC NULLS LAST
+                    LIMIT %s
+                """, params + [limit])
+                rows = cur.fetchall()
+        finally:
+            self._put_conn(conn)
 
-            query = f"""
-                SELECT fm.file_path, fm.file_name, fm.file_type, fm.modified_date,
-                       ca.keywords, ca.tfidf_keywords
-                FROM file_metadata fm
-                JOIN content_analysis ca ON fm.file_path = ca.file_path
-                WHERE {' OR '.join(conditions)}
-                ORDER BY fm.modified_date DESC
-                LIMIT ?
-            """
-            params.append(limit)
-
-            cursor = conn.execute(query, params)
-            results = []
-
-            for row in cursor:
-                results.append({
-                    'file_path': row['file_path'],
-                    'file_name': row['file_name'],
-                    'file_type': row['file_type'],
-                    'modified_date': row['modified_date'],
-                    'keywords': json.loads(row['keywords']) if row['keywords'] else [],
-                    'tfidf_keywords': json.loads(row['tfidf_keywords']) if row['tfidf_keywords'] else []
-                })
-
-            return results
+        return [
+            {
+                'file_path': row['file_path'],
+                'file_name': os.path.basename(row['file_path']),
+                'file_type': row['file_type'] or '',
+                'modified_date': str(row['last_modified'])[:19] if row['last_modified'] else '',
+                'keywords': row['keywords'] or [],
+                'tfidf_keywords': row['tfidf_keywords'] or [],
+            }
+            for row in rows
+        ]
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get database statistics"""
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*), COALESCE(SUM(file_size), 0) FROM file_metadata")
+                total_files, total_bytes = cur.fetchone()
 
-        with self.get_connection() as conn:
-            stats = {}
+                cur.execute("""
+                    SELECT file_type, COUNT(*) FROM file_metadata
+                    GROUP BY file_type ORDER BY COUNT(*) DESC LIMIT 10
+                """)
+                top_types = [{'type': r[0] or '', 'count': r[1]} for r in cur.fetchall()]
 
-            # Total files
-            cursor = conn.execute("SELECT COUNT(*) as count FROM file_metadata")
-            stats['total_files'] = cursor.fetchone()['count']
+                cur.execute("SELECT COUNT(*) FROM content_analysis")
+                analyzed = cur.fetchone()[0]
 
-            # Total size
-            cursor = conn.execute("SELECT SUM(file_size) as total FROM file_metadata")
-            stats['total_size_bytes'] = cursor.fetchone()['total'] or 0
-            stats['total_size_mb'] = round(stats['total_size_bytes'] / (1024*1024), 2)
+                cur.execute("SELECT COUNT(*) FROM text_chunks")
+                total_chunks = cur.fetchone()[0]
 
-            # Files by type (top 10)
-            cursor = conn.execute(
-                """SELECT file_type, COUNT(*) as count
-                   FROM file_metadata
-                   GROUP BY file_type
-                   ORDER BY count DESC LIMIT 10"""
-            )
-            stats['top_file_types'] = [{'type': row['file_type'], 'count': row['count']}
-                                        for row in cursor]
+                cur.execute("SELECT COUNT(*) FROM text_chunks WHERE embedding IS NOT NULL")
+                embedded_chunks = cur.fetchone()[0]
 
-            # Text files with content analysis
-            cursor = conn.execute("SELECT COUNT(*) as count FROM content_analysis")
-            stats['files_with_content_analysis'] = cursor.fetchone()['count']
+                cur.execute("""
+                    SELECT COUNT(DISTINCT regexp_replace(file_path, '/[^/]+$', ''))
+                    FROM file_metadata
+                """)
+                total_dirs = cur.fetchone()[0]
+        finally:
+            self._put_conn(conn)
 
-            # Total chunks
-            cursor = conn.execute("SELECT COUNT(*) as count FROM text_chunks")
-            stats['total_chunks'] = cursor.fetchone()['count']
-
-            # Directory count
-            cursor = conn.execute("SELECT COUNT(DISTINCT directory) as count FROM file_metadata")
-            stats['total_directories'] = cursor.fetchone()['count']
-
-            return stats
+        return {
+            'total_files': total_files,
+            'total_size_bytes': int(total_bytes),
+            'total_size_mb': round(int(total_bytes) / (1024 * 1024), 2),
+            'top_file_types': top_types,
+            'files_with_content_analysis': analyzed,
+            'total_chunks': total_chunks,
+            'embedded_chunks': embedded_chunks,
+            'total_directories': total_dirs,
+        }
 
 
 # Initialize database interface
 try:
-    db = FileMetadataDB(DB_PATH)
-    print(f"✓ File metadata MCP server ready - Database: {DB_PATH}", flush=True, file=sys.stderr)
-except FileNotFoundError as e:
-    print(f"Error: {e}", flush=True, file=sys.stderr)
+    db = FileMetadataDB()
+    print("✓ File metadata MCP server ready - PostgreSQL: file_metadata", flush=True, file=sys.stderr)
+except Exception as e:
+    print(f"Error connecting to PostgreSQL: {e}", flush=True, file=sys.stderr)
     exit(1)
 
 # Initialize autograph manager for knowledge graph
-autograph_mgr: Optional[AutographManager] = None
-if AUTOGRAPH_AVAILABLE:
+autograph_mgr: Optional[Any] = None
+if AUTOGRAPH_AVAILABLE and AutographManager is not None:
     try:
-        # Create knowledge_graph directory if it doesn't exist
         os.makedirs(KG_PATH, exist_ok=True)
         autograph_mgr = AutographManager(KG_PATH)
         print(f"✓ Autograph knowledge graph ready - Path: {KG_PATH}", flush=True, file=sys.stderr)
@@ -455,7 +432,6 @@ server = Server("file-metadata-mcp")
 
 @server.list_tools()
 async def handle_list_tools() -> List[Tool]:
-    """List available tools for file metadata search and analysis"""
     return [
         Tool(
             name="search_files",
@@ -482,10 +458,6 @@ Examples:
                         "type": "string",
                         "description": "Filter to files in this directory path"
                     },
-                    "created_since": {
-                        "type": "string",
-                        "description": "Files created since this date (YYYY-MM-DD)"
-                    },
                     "modified_since": {
                         "type": "string",
                         "description": "Files modified since this date (YYYY-MM-DD)"
@@ -498,10 +470,6 @@ Examples:
                         "type": "integer",
                         "description": "Maximum file size in bytes"
                     },
-                    "permissions": {
-                        "type": "string",
-                        "description": "Unix permissions (e.g., '644', '755')"
-                    },
                     "limit": {
                         "type": "integer",
                         "description": "Maximum results to return (default: 20)",
@@ -512,22 +480,22 @@ Examples:
         ),
         Tool(
             name="full_text_search",
-            description="""Search inside file contents using full-text search (FTS5).
+            description="""Search inside file contents using full-text search (tsvector).
 
 Returns matching files with text snippets showing where the match was found.
-Supports phrases ("exact phrase") and boolean operators (AND, OR, NOT).
+Supports phrases ("exact phrase"), OR, and exclusion (-term).
 
 Examples:
 - Find files mentioning: query="authentication"
 - Exact phrase: query='"API endpoint"'
-- Boolean: query="python AND async"
-- Exclude: query="config NOT test" """,
+- Boolean: query="python async"
+- Exclude: query="config -test" """,
             inputSchema={
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Text to search for in file content. Supports FTS5 syntax."
+                        "description": "Text to search for in file content."
                     },
                     "limit": {
                         "type": "integer",
@@ -625,7 +593,7 @@ not just present. Good for finding files "about" a topic.""",
             description="""Get database statistics and overview.
 
 Returns: total files, total size, top file types, directories count,
-files with content analysis, total text chunks. Use to understand the indexed corpus.""",
+files with content analysis, total text chunks, embedded chunks.""",
             inputSchema={
                 "type": "object",
                 "properties": {}
@@ -633,12 +601,12 @@ files with content analysis, total text chunks. Use to understand the indexed co
         ),
         Tool(
             name="semantic_search",
-            description="""Search files by meaning using AI embeddings (FAISS vector search).
+            description="""Search files by meaning using AI embeddings (pgvector cosine similarity).
 
 Unlike full-text search (exact matches), this finds semantically similar content.
 "authentication flow" finds docs about "login process", "user credentials", etc.
 
-Requires FAISS index to be built. Returns similarity scores and text previews.""",
+Returns similarity scores and text previews. Requires sentence-transformers.""",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -755,8 +723,6 @@ edge types, and embedding status. Use to monitor KG health and learning progress
 
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResult:
-    """Handle tool calls"""
-
     try:
         if name == "search_files":
             results = db.search_files_by_metadata(**arguments)
@@ -804,26 +770,27 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResu
             result = db.get_file_info(file_path)
 
             if result:
-                size_kb = result['file_size'] / 1024
+                size_kb = (result.get('file_size') or 0) / 1024
                 response = f"File: {result['file_name']}\n"
                 response += f"Path: {result['file_path']}\n"
-                response += f"Type: {result['file_type']} ({result['mime_type']})\n"
+                response += f"Type: {result.get('file_type', '')} ({result.get('mime_type', '')})\n"
                 response += f"Size: {size_kb:.1f}KB\n"
-                response += f"Permissions: {result['permissions']}\n"
-                response += f"Created: {result['created_date']}\n"
                 response += f"Modified: {result['modified_date']}\n"
 
                 if result.get('word_count'):
                     response += f"\nContent Analysis:\n"
-                    response += f"  Words: {result['word_count']} | Chars: {result['char_count']}\n"
+                    response += f"  Words: {result['word_count']} | Chars: {result.get('char_count', 0)}\n"
                     response += f"  Chunks: {result['chunk_count']}\n"
 
                     if result.get('keywords'):
-                        response += f"  Keywords: {', '.join(result['keywords'][:10])}\n"
+                        kws = result['keywords']
+                        if isinstance(kws, list):
+                            response += f"  Keywords: {', '.join(str(k) for k in kws[:10])}\n"
 
                     if result.get('tfidf_keywords'):
-                        top_tfidf = [kw[0] if isinstance(kw, list) else kw for kw in result['tfidf_keywords'][:5]]
-                        response += f"  TF-IDF: {', '.join(str(k) for k in top_tfidf)}\n"
+                        top_tfidf = result['tfidf_keywords'][:5]
+                        top_words = [kw[0] if isinstance(kw, list) else kw for kw in top_tfidf]
+                        response += f"  TF-IDF: {', '.join(str(k) for k in top_words)}\n"
             else:
                 response = f"File not found in database: {file_path}"
 
@@ -859,7 +826,7 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResu
             if results:
                 response = "Indexed directories:\n\n"
                 for r in results:
-                    size_mb = (r['total_size'] or 0) / (1024*1024)
+                    size_mb = (r['total_size'] or 0) / (1024 * 1024)
                     response += f"• {r['directory']}\n"
                     response += f"  Files: {r['file_count']} | Size: {size_mb:.1f}MB\n"
             else:
@@ -882,8 +849,9 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResu
                 for r in results:
                     response += f"• {r['file_path']}\n"
                     response += f"  Type: {r['file_type']} | Modified: {r['modified_date']}\n"
-                    if r.get('keywords'):
-                        response += f"  Keywords: {', '.join(r['keywords'][:5])}\n"
+                    kws = r.get('keywords') or []
+                    if kws:
+                        response += f"  Keywords: {', '.join(str(k) for k in kws[:5])}\n"
                     response += "\n"
             else:
                 response = f"No files found matching keywords: {keywords}"
@@ -899,22 +867,8 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResu
             response += f"Directories: {stats['total_directories']:,}\n"
             response += f"Files with Content Analysis: {stats['files_with_content_analysis']:,}\n"
             response += f"Total Text Chunks: {stats['total_chunks']:,}\n"
-
-            # FAISS index status
-            faiss_stats = db.get_faiss_stats()
-            if faiss_stats:
-                response += f"\nFAISS Semantic Search: Available\n"
-                response += f"  Major index: {faiss_stats['major']['vector_count']:,} vectors"
-                if faiss_stats['major']['build_timestamp']:
-                    response += f" (built: {faiss_stats['major']['build_timestamp'][:10]})"
-                response += "\n"
-                if faiss_stats['minor']['vector_count'] > 0:
-                    response += f"  Minor index: {faiss_stats['minor']['vector_count']:,} vectors (incremental)\n"
-                response += f"  Total vectors: {faiss_stats['total_vectors']:,}\n"
-                if faiss_stats['stale_vectors'] > 0:
-                    response += f"  Stale vectors: {faiss_stats['stale_vectors']:,}\n"
-            else:
-                response += f"FAISS Semantic Search: Not available (index not built)\n"
+            response += f"\nVector Semantic Search (pgvector):\n"
+            response += f"  Embedded chunks: {stats['embedded_chunks']:,} / {stats['total_chunks']:,}\n"
 
             response += f"\nTop File Types:\n"
             for ft in stats['top_file_types']:
@@ -930,9 +884,9 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResu
                     isError=True
                 )
 
-            if not db.is_faiss_available():
+            if not db.is_semantic_available():
                 return CallToolResult(
-                    content=[TextContent(type="text", text="Semantic search not available. FAISS index not built.\nRun: python3 build_faiss_index.py")],
+                    content=[TextContent(type="text", text="Semantic search not available: no embeddings in database.")],
                     isError=True
                 )
 
@@ -943,10 +897,7 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResu
                 for r in results:
                     response += f"• {r['file_path']} (chunk {r['chunk_index']})\n"
                     response += f"  Similarity: {r['similarity']:.2%} | Type: {r['file_type']} | Modified: {r['modified_date']}\n"
-                    response += f"  Preview: {r['chunk_text']}...\n"
-                    if r.get('tfidf_keywords'):
-                        response += f"  Keywords: {', '.join(r['tfidf_keywords'])}\n"
-                    response += "\n"
+                    response += f"  Preview: {r['chunk_text']}...\n\n"
             else:
                 response = f"No semantically similar results found for '{query}'."
 
@@ -1084,14 +1035,13 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResu
 
 
 async def main():
-    """Main server entry point"""
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
             read_stream,
             write_stream,
             InitializationOptions(
                 server_name="file-metadata-mcp",
-                server_version="2.1.0",  # Added autograph/KG tools
+                server_version="3.0.0",
                 capabilities=server.get_capabilities(
                     notification_options=NotificationOptions(),
                     experimental_capabilities={}
