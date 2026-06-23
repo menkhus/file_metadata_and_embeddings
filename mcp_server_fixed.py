@@ -111,20 +111,24 @@ class FileMetadataDB:
         conn = self._get_conn()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                # Score computed in CTE so ORDER BY uses the alias.
+                # Using <=> directly in ORDER BY triggers the HNSW index globally,
+                # bypassing any WHERE filters (paths, etc.).
                 cur.execute("""
-                    SELECT
-                        tc.file_path,
-                        tc.chunk_index,
-                        tc.content,
-                        1 - (tc.lsa_vec <=> %s::vector) AS similarity,
-                        fm.file_type,
-                        fm.last_modified
-                    FROM text_chunks tc
-                    JOIN file_metadata fm ON tc.file_path = fm.file_path
-                    WHERE tc.lsa_vec IS NOT NULL
-                    ORDER BY tc.lsa_vec <=> %s::vector
-                    LIMIT %s
-                """, [vec_str, vec_str, limit])
+                    WITH ranked AS (
+                        SELECT
+                            tc.file_path,
+                            tc.chunk_index,
+                            tc.content,
+                            1 - (tc.lsa_vec <=> %s::vector) AS similarity,
+                            fm.file_type,
+                            fm.last_modified
+                        FROM text_chunks tc
+                        JOIN file_metadata fm ON tc.file_path = fm.file_path
+                        WHERE tc.lsa_vec IS NOT NULL
+                    )
+                    SELECT * FROM ranked ORDER BY similarity DESC LIMIT %s
+                """, [vec_str, limit])
                 rows = cur.fetchall()
         finally:
             self._put_conn(conn)
@@ -155,21 +159,22 @@ class FileMetadataDB:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 if scope:
                     scope_filter = "AND tc.file_path LIKE %s"
-                    params: List[Any] = [vec_str, scope.rstrip('/') + '/%', vec_str, k]
+                    params: List[Any] = [vec_str, scope.rstrip('/') + '/%', k]
                 else:
                     scope_filter = ""
-                    params = [vec_str, vec_str, k]
+                    params = [vec_str, k]
                 cur.execute(f"""
-                    SELECT
-                        tc.file_path,
-                        tc.chunk_index,
-                        tc.content,
-                        1 - (tc.lsa_vec <=> %s::vector) AS similarity
-                    FROM text_chunks tc
-                    WHERE tc.lsa_vec IS NOT NULL
-                    {scope_filter}
-                    ORDER BY tc.lsa_vec <=> %s::vector
-                    LIMIT %s
+                    WITH ranked AS (
+                        SELECT
+                            tc.file_path,
+                            tc.chunk_index,
+                            tc.content,
+                            1 - (tc.lsa_vec <=> %s::vector) AS similarity
+                        FROM text_chunks tc
+                        WHERE tc.lsa_vec IS NOT NULL
+                        {scope_filter}
+                    )
+                    SELECT * FROM ranked ORDER BY similarity DESC LIMIT %s
                 """, params)
                 hits = cur.fetchall()
 
