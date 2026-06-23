@@ -128,7 +128,7 @@ class FileMetadataDB:
                         WHERE tc.lsa_vec IS NOT NULL
                     )
                     SELECT * FROM ranked
-                    WHERE similarity IS NOT NULL AND similarity = similarity
+                    WHERE similarity IS NOT NULL AND similarity != 'NaN'::float
                     ORDER BY similarity DESC LIMIT %s
                 """, [vec_str, limit])
                 rows = cur.fetchall()
@@ -177,7 +177,7 @@ class FileMetadataDB:
                         {scope_filter}
                     )
                     SELECT * FROM ranked
-                    WHERE similarity IS NOT NULL AND similarity = similarity
+                    WHERE similarity IS NOT NULL AND similarity != 'NaN'::float
                     ORDER BY similarity DESC LIMIT %s
                 """, params)
                 hits = cur.fetchall()
