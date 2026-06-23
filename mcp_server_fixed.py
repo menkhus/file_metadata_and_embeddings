@@ -138,6 +138,56 @@ class FileMetadataDB:
             for row in rows
         ]
 
+    def recall(self, thought: str, k: int = 3, scope: str = '') -> str:
+        """Semantic recall with adjacent-chunk context. 'scope' filters by path prefix."""
+        if not self._load_model() or self._sentence_model is None:
+            return "Semantic recall unavailable: model not loaded."
+        embedding = self._sentence_model.encode([thought])[0].tolist()
+        vec_str = "[" + ",".join(str(v) for v in embedding) + "]"
+        conn = self._get_conn()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                if scope:
+                    scope_filter = "AND tc.file_path LIKE %s"
+                    params: List[Any] = [vec_str, scope.rstrip('/') + '/%', vec_str, k]
+                else:
+                    scope_filter = ""
+                    params = [vec_str, vec_str, k]
+                cur.execute(f"""
+                    SELECT
+                        tc.file_path,
+                        tc.chunk_index,
+                        tc.content,
+                        1 - (tc.embedding <=> %s::vector) AS similarity
+                    FROM text_chunks tc
+                    WHERE tc.embedding IS NOT NULL
+                    {scope_filter}
+                    ORDER BY tc.embedding <=> %s::vector
+                    LIMIT %s
+                """, params)
+                hits = cur.fetchall()
+
+                if not hits:
+                    return "Nothing found."
+
+                output: List[str] = []
+                for row in hits:
+                    # Fetch adjacent chunks for context
+                    ci = row['chunk_index']
+                    cur.execute("""
+                        SELECT chunk_index, content FROM text_chunks
+                        WHERE file_path = %s AND chunk_index = ANY(%s)
+                        ORDER BY chunk_index
+                    """, [row['file_path'], [ci - 1, ci, ci + 1]])
+                    adj = cur.fetchall()
+                    context = "\n".join((r['content'] or '') for r in adj)
+                    output.append(
+                        f"---\n[{row['similarity']:.2f}] {row['file_path']}\n\n{context[:600]}"
+                    )
+                return "\n\n".join(output)
+        finally:
+            self._put_conn(conn)
+
     def search_files_by_metadata(self, **kwargs) -> List[Dict[str, Any]]:
         conn = self._get_conn()
         try:
@@ -717,7 +767,40 @@ edge types, and embedding status. Use to monitor KG health and learning progress
                 "type": "object",
                 "properties": {}
             }
-        )
+        ),
+        Tool(
+            name="recall",
+            description="""Semantic recall: "What have I worked on / written about X?"
+
+Searches all indexed files using cosine similarity, then expands each hit to
+include adjacent chunks for full context. Returns formatted text ready to read.
+
+Use this to surface prior work, design decisions, or session notes relevant to
+the current task. Prefer this over semantic_search when you want readable prose
+output rather than a structured result list.
+
+Optional scope parameter limits search to a directory prefix, e.g.
+scope="/Users/mark/.claude" to search only AI session logs.""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "thought": {
+                        "type": "string",
+                        "description": "What you're trying to recall — a concept, question, or topic"
+                    },
+                    "k": {
+                        "type": "integer",
+                        "description": "Number of results to return (default: 3)",
+                        "default": 3
+                    },
+                    "scope": {
+                        "type": "string",
+                        "description": "Optional path prefix to scope the search (e.g. '/Users/mark/.claude')"
+                    }
+                },
+                "required": ["thought"]
+            }
+        ),
     ]
 
 
@@ -902,6 +985,25 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResu
                 response = f"No semantically similar results found for '{query}'."
 
             return CallToolResult(content=[TextContent(type="text", text=response)])
+
+        elif name == "recall":
+            thought = arguments.get("thought")
+            if not thought:
+                return CallToolResult(
+                    content=[TextContent(type="text", text="Error: thought parameter is required")],
+                    isError=True
+                )
+            if not db.is_semantic_available():
+                return CallToolResult(
+                    content=[TextContent(type="text", text="Recall unavailable: no embeddings in database.")],
+                    isError=True
+                )
+            result = db.recall(
+                thought,
+                k=arguments.get("k", 3),
+                scope=arguments.get("scope", ""),
+            )
+            return CallToolResult(content=[TextContent(type="text", text=result)])
 
         # ====================================================================
         # Knowledge Graph / Autograph Tools
