@@ -64,18 +64,16 @@ content_analysis    One row per indexed text file. Stores word count, TF-IDF
                                 extract_idea_signatures.py (project keyword aggregation)
 
 text_chunks         One row per text chunk per file. Chunked content used for
-                    embedding and FTS. Chunk size determined by TextProcessor.
+                    embedding and FTS. Paragraph/line-boundary chunking via TextProcessor.
                     Created by: file_metadata_content.py (DatabaseManager.init_database)
                     Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
-                    Read by:    build_faiss_index.py (builds FAISS index from chunks)
-                                mcp_server_fixed.py (get_file_chunks, full_text_search)
+                    Read by:    mcp_server_fixed.py (get_file_chunks, full_text_search, semantic_search)
+                                backfill_embeddings.py (fills embedding column for chunks)
 
-embeddings_index    One row per chunk. Stores embedding vectors as JSON arrays
-                    for FAISS index construction.
+embeddings_index    Legacy table — embeddings are now stored in text_chunks.embedding (pgvector).
                     Created by: file_metadata_content.py (DatabaseManager.init_database)
                     Written by: file_metadata_content.py (DatabaseManager.insert_content_analysis)
-                    Read by:    build_faiss_index.py (loads vectors into FAISS)
-                                mcp_server_fixed.py (semantic_search)
+                    Read by:    mcp_server_fixed.py (semantic_search via pgvector <=> operator)
 
 content_fts         FTS5 virtual table over text chunks for full-text search.
                     Never written directly — populated via INSERT INTO content_fts.
@@ -608,40 +606,55 @@ class TextProcessor:
             logger.warning(f"Error extracting keywords: {e}")
             return []
     
-    def chunk_text(self, text: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
-        """Split text into overlapping chunks with error handling"""
+    _CODE_EXTENSIONS = frozenset({'.py', '.go', '.rs', '.ts', '.js', '.sh', '.bash', '.c', '.cpp', '.java'})
+    _CODE_CHUNK_SIZE = 350
+    _PROSE_CHUNK_SIZE = 800
+
+    def chunk_text(self, text: str, chunk_size: int = 1000, overlap: int = 200, file_ext: str = '') -> List[str]:
+        """Split text at paragraph or line boundaries (no fixed-size cuts)."""
         try:
             if not text:
                 return []
-            
-            if len(text) <= chunk_size:
-                return [text]
-            
-            chunks = []
-            start = 0
-            
-            while start < len(text):
-                end = start + chunk_size
-                
-                # Try to end at sentence boundary
-                if end < len(text):
-                    # Look for sentence ending in the last 100 characters
-                    last_period = text.rfind('.', max(0, end - 100), end)
-                    if last_period != -1:
-                        end = last_period + 1
-                
-                chunk = text[start:end].strip()
-                if chunk:
-                    chunks.append(chunk)
-                
-                start = end - overlap
-                if start >= len(text):
-                    break
-            
-            return chunks
+
+            if file_ext in self._CODE_EXTENSIONS:
+                # Code: accumulate lines up to _CODE_CHUNK_SIZE chars per chunk
+                limit = self._CODE_CHUNK_SIZE
+                chunks: List[str] = []
+                current: List[str] = []
+                current_size = 0
+                for line in text.split('\n'):
+                    piece = line + '\n'
+                    if current_size + len(piece) > limit and current:
+                        chunks.append(''.join(current))
+                        current = [piece]
+                        current_size = len(piece)
+                    else:
+                        current.append(piece)
+                        current_size += len(piece)
+                if current:
+                    chunks.append(''.join(current))
+                return chunks
+            else:
+                # Prose: accumulate paragraphs up to _PROSE_CHUNK_SIZE chars per chunk
+                limit = self._PROSE_CHUNK_SIZE
+                chunks = []
+                current = []
+                current_size = 0
+                for para in text.split('\n\n'):
+                    piece = para + '\n\n'
+                    if current_size + len(piece) > limit and current:
+                        chunks.append(''.join(current))
+                        current = [piece]
+                        current_size = len(piece)
+                    else:
+                        current.append(piece)
+                        current_size += len(piece)
+                if current:
+                    chunks.append(''.join(current))
+                return chunks or [text[:self._PROSE_CHUNK_SIZE]]
         except Exception as e:
             logger.warning(f"Error chunking text: {e}")
-            return [text[:chunk_size]] if text else []
+            return [text[:1000]] if text else []
     
     def generate_topic_summary(self, text: str, max_length: int = 200) -> str:
         """Generate a topic summary using simple extractive method"""
@@ -755,9 +768,10 @@ class TextProcessor:
             word_count = len(content.split())
             char_count = len(content)
             
-            # Chunk text for FTS and future FAISS
+            # Chunk text for FTS and embeddings
+            file_ext = os.path.splitext(file_path)[1].lower()
             try:
-                chunks = self.chunk_text(content)
+                chunks = self.chunk_text(content, file_ext=file_ext)
             except Exception as e:
                 logger.warning(f"Error chunking text for {file_path}: {e}")
                 chunks = [content[:1000]] if content else []
