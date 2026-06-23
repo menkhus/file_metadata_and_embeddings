@@ -8,6 +8,7 @@ UV=/Users/mark/.local/bin/uv
 PROJECT=/Users/mark/Documents/src/file_metadata_and_embeddings
 SCRIPT="$PROJECT/file_metadata_content.py"
 LSA_BUILD="$PROJECT/build_lsa_index.py"
+GEMINI_EXTRACT="$PROJECT/gemini_log_extractor.py"
 WORKERS=${WORKERS:-4}
 
 EXTENSIONS=".md,.txt,.rst,.py,.go,.rs,.ts,.js,.sh,.bash,.toml,.yaml,.yml,.jsonl"
@@ -27,8 +28,9 @@ run /Users/mark/Documents/src
 run /Users/mark/Documents/writing
 # ~/.claude is hidden — allowlist overrides the hidden-path check
 run --allowlist /Users/mark/.claude /Users/mark/.claude
-# ~/ai_shell_logs — removed: path never existed. Ollama sessions are in
-# ~/Documents/src/llm_session_database/llm_sessions.db (SQLite) — needs extractor ER.
+# ~/.gemini/extracted is hidden — extract session JSONs to .md first, then scan
+"$UV" run --project "$PROJECT" python3 "$GEMINI_EXTRACT"
+run --allowlist /Users/mark/.gemini/extracted /Users/mark/.gemini/extracted
 
 # Encode new chunks (lsa_vec IS NULL) using the existing LSA model. Does not refit.
 "$UV" run --project "$PROJECT" python3 "$LSA_BUILD" --incremental
