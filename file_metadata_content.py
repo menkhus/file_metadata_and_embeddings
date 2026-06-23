@@ -947,6 +947,28 @@ class DatabaseManager:
             logger.error(f"Error getting modified date for {file_path}: {e}")
             return ''
 
+    def has_text_chunks(self, file_path: str) -> bool:
+        """Return True if at least one text_chunk exists for this path."""
+        try:
+            conn = self.get_connection()
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 FROM text_chunks WHERE file_path = %s LIMIT 1", (file_path,))
+                return cur.fetchone() is not None
+        except Exception as e:
+            logger.error(f"Error checking text_chunks for {file_path}: {e}")
+            return False
+
+    def has_content_analysis(self, file_path: str) -> bool:
+        """Return True if content_analysis exists for this path (any status)."""
+        try:
+            conn = self.get_connection()
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 FROM content_analysis WHERE file_path = %s LIMIT 1", (file_path,))
+                return cur.fetchone() is not None
+        except Exception as e:
+            logger.error(f"Error checking content_analysis for {file_path}: {e}")
+            return False
+
     def get_content_analysis_by_hash(self, file_hash: str) -> Optional[Dict[str, Any]]:
         """Return first content_analysis row matching this hash, or None."""
         if not file_hash or file_hash in ('too_large', 'permission_denied', 'error', 'file_not_found'):
@@ -1015,9 +1037,9 @@ class DatabaseManager:
                     cur.execute("""
                         INSERT INTO text_chunks
                             (file_path, chunk_index, file_hash, chunk_strategy,
-                             chunk_size, total_chunks, content, embedding)
+                             chunk_size, total_chunks, content)
                         SELECT %s, chunk_index, file_hash, chunk_strategy,
-                               chunk_size, total_chunks, content, embedding
+                               chunk_size, total_chunks, content
                         FROM text_chunks WHERE file_path = %s
                     """, (target_path, source_path))
 
@@ -1069,12 +1091,11 @@ class DatabaseManager:
                         cur.execute("""
                             INSERT INTO text_chunks
                                 (file_path, chunk_index, file_hash, chunk_strategy,
-                                 chunk_size, total_chunks, content, embedding)
-                            VALUES (%s, %s, %s, 'prose_discrete', %s, %s, %s, %s::vector)
+                                 chunk_size, total_chunks, content)
+                            VALUES (%s, %s, %s, 'prose_discrete', %s, %s, %s)
                         """, (
                             analysis.file_path, i, analysis.file_hash,
                             len(chunk), total, chunk,
-                            embedding_vec,
                         ))
         try:
             self.execute_with_retry(_op)
@@ -1502,7 +1523,13 @@ class FileMetadataExtractor:
                         fs_mod = datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
                     except Exception:
                         fs_mod = ''
-                    if db_mod and fs_mod and db_mod == fs_mod:
+                    # Skip only if mtime matches AND downstream data exists.
+                    # A matching mtime with no content_analysis means insert_content_analysis
+                    # failed mid-transaction and left a phantom file_metadata row.
+                    resolved = str(file_path.resolve())
+                    if db_mod and fs_mod and db_mod == fs_mod \
+                            and (self.db_manager.has_text_chunks(resolved)
+                                 or self.db_manager.has_content_analysis(resolved)):
                         logger.debug(f"Skipping unchanged file: {file_path}")
                         return ProcessingStatus.SKIPPED
 
