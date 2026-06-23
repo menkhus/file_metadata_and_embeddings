@@ -48,6 +48,9 @@ env/
 *.faiss
 *.index
 
+# Fitted ML models (large binary artifacts, regenerate with build_lsa_index.py)
+*.joblib
+
 # macOS native builds
 osx_support/**/*.dylib
 osx_support/**/.build/

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phase 3: Backfill vector embeddings for all text_chunks rows using all-MiniLM-L6-v2.
+Backfill vector embeddings for all text_chunks rows using nomic-embed-text-v1.5.
 
 Encodes chunk content in batches, writes embedding vectors to PostgreSQL.
 Safe to interrupt and resume — skips rows where embedding IS NOT NULL.
@@ -20,6 +20,10 @@ import os
 import sys
 import time
 
+# Use only local cache — suppress all HuggingFace Hub network calls.
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 import psycopg2
 import psycopg2.extras
 
@@ -29,9 +33,9 @@ PG_DSN = (
     f"host=localhost dbname=file_metadata user=postgres "
     f"password={os.environ.get('DB_PASSWORD', '')}"
 )
-MODEL_NAME = "all-MiniLM-L6-v2"
-EMBED_DIM = 384
-DEFAULT_BATCH = 256
+MODEL_NAME = "nomic-ai/nomic-embed-text-v1.5"
+EMBED_DIM = 768
+DEFAULT_BATCH = 128
 
 
 def load_model():
@@ -41,9 +45,15 @@ def load_model():
         log.error("sentence-transformers not installed: uv add sentence-transformers")
         sys.exit(1)
     log.info("Loading model %s …", MODEL_NAME)
-    model = SentenceTransformer(MODEL_NAME)
-    assert model.get_sentence_embedding_dimension() == EMBED_DIM, \
-        f"Expected {EMBED_DIM}-dim, got {model.get_sentence_embedding_dimension()}"
+    import torch
+    # Bulk backfill runs on CPU: MPS accumulates tensor memory across batches and
+    # OOMs on variable-length real chunks. MPS is kept for single-query inference.
+    # Use all physical cores for intra-op parallelism.
+    torch.set_num_threads(8)
+    log.info("Using device: cpu (8 threads)")
+    model = SentenceTransformer(MODEL_NAME, trust_remote_code=True, device="cpu")
+    assert model.get_embedding_dimension() == EMBED_DIM, \
+        f"Expected {EMBED_DIM}-dim, got {model.get_embedding_dimension()}"
     log.info("Model ready (dim=%d)", EMBED_DIM)
     return model
 
@@ -111,7 +121,8 @@ def main() -> None:
             ids = [r[0] for r in batch]
             texts = [r[1] or "" for r in batch]
 
-            embeddings = model.encode(texts, show_progress_bar=False, batch_size=args.batch_size)
+            embeddings = model.encode(texts, prompt_name="document",
+                                      show_progress_bar=False, batch_size=args.batch_size)
 
             # Format as PostgreSQL vector literal: '[0.1,0.2,...]'
             update_rows = [
@@ -141,7 +152,7 @@ def main() -> None:
     log.info("Done. Embedded: %d / %d | Still remaining: %d", done_after, total, remaining_after)
 
     if remaining_after == 0:
-        log.info("All chunks embedded. HNSW index is ready for queries.")
+        log.info("All chunks embedded with %s. Run CREATE INDEX to rebuild HNSW.", MODEL_NAME)
 
 
 if __name__ == "__main__":

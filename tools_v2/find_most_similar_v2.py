@@ -28,7 +28,7 @@ _PG_DSN = (
     f"password={os.environ.get('DB_PASSWORD', '')}"
 )
 
-DEFAULT_MODEL = "all-MiniLM-L6-v2"
+DEFAULT_MODEL = "nomic-ai/nomic-embed-text-v1.5"
 
 try:
     from sentence_transformers import SentenceTransformer as _SentenceTransformer

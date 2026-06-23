@@ -1,5 +1,21 @@
 # Apple Intents Integration TODO
 
+## Active parallel work — see this first
+
+**`~/src/writing-surface/apple_ai/`** is a more current Apple AI implementation
+than the `osx_support/` skeleton here. It targets the writing surface use case
+specifically and uses the NPU (Apple Neural Engine) via the `Natural Language`
+framework and Core ML as part of an App Intents integration. Architecture,
+Swift, Python, and C# implementations are all present. Check that directory
+before continuing work here — it likely has fresher design decisions.
+
+Key file: `~/src/writing-surface/apple_ai/ARCHITECTURE.md` — Adaptive
+Escalation architecture: Tier 1 (local NLP/NER on ANE), escalating to higher
+tiers only when local hardware can't answer. Promise graph over the manuscript
+as the core data model.
+
+---
+
 ## Concept (2026-02-02)
 
 Expose SQLite database and FAISS semantic search to Apple apps (Siri, Shortcuts, Apple Intelligence) via native Swift App Intents framework.

@@ -22,6 +22,7 @@ import os
 import sys
 from typing import Any, Dict, List, Optional
 
+import numpy as np
 import psycopg2
 import psycopg2.pool
 import psycopg2.extras
@@ -59,7 +60,7 @@ class FileMetadataDB:
 
     def __init__(self):
         self._pool = psycopg2.pool.ThreadedConnectionPool(1, 5, dsn=_PG_DSN)
-        self._sentence_model = None
+        self._lsa = None
         self._model_load_attempted = False
         # Verify connection
         conn = self._pool.getconn()
@@ -76,34 +77,37 @@ class FileMetadataDB:
         self._pool.putconn(conn)
 
     def _load_model(self) -> bool:
-        """Lazy-load sentence transformer model for semantic search."""
+        """Lazy-load LSA model (TF-IDF vectorizer + TruncatedSVD) for semantic search."""
         if self._model_load_attempted:
-            return self._sentence_model is not None
+            return self._lsa is not None
         self._model_load_attempted = True
         try:
-            from sentence_transformers import SentenceTransformer
-            self._sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
-            print("Sentence transformer model loaded.", file=sys.stderr)
+            import joblib
+            model_path = os.path.join(os.path.dirname(__file__), "lsa_model.joblib")
+            self._lsa = joblib.load(model_path)
+            print("LSA model loaded.", file=sys.stderr)
             return True
         except Exception as e:
-            print(f"Could not load sentence transformer: {e}", file=sys.stderr)
+            print(f"Could not load LSA model: {e}", file=sys.stderr)
             return False
 
     def is_semantic_available(self) -> bool:
         conn = self._get_conn()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT 1 FROM text_chunks WHERE embedding IS NOT NULL LIMIT 1")
+                cur.execute("SELECT 1 FROM text_chunks WHERE lsa_vec IS NOT NULL LIMIT 1")
                 return cur.fetchone() is not None
         finally:
             self._put_conn(conn)
 
     def semantic_search(self, query: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Cosine similarity search using pgvector."""
-        if not self._load_model() or self._sentence_model is None:
+        if not self._load_model() or self._lsa is None:
             return []
-        embedding = self._sentence_model.encode([query])[0].tolist()
-        vec_str = "[" + ",".join(str(v) for v in embedding) + "]"
+        tfidf = self._lsa["vectorizer"].transform([query])
+        vec = self._lsa["svd"].transform(tfidf)[0]
+        vec = vec / (np.linalg.norm(vec) or 1.0)
+        vec_str = "[" + ",".join(str(v) for v in vec.tolist()) + "]"
         conn = self._get_conn()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -112,13 +116,13 @@ class FileMetadataDB:
                         tc.file_path,
                         tc.chunk_index,
                         tc.content,
-                        1 - (tc.embedding <=> %s::vector) AS similarity,
+                        1 - (tc.lsa_vec <=> %s::vector) AS similarity,
                         fm.file_type,
                         fm.last_modified
                     FROM text_chunks tc
                     JOIN file_metadata fm ON tc.file_path = fm.file_path
-                    WHERE tc.embedding IS NOT NULL
-                    ORDER BY tc.embedding <=> %s::vector
+                    WHERE tc.lsa_vec IS NOT NULL
+                    ORDER BY tc.lsa_vec <=> %s::vector
                     LIMIT %s
                 """, [vec_str, vec_str, limit])
                 rows = cur.fetchall()
@@ -140,10 +144,12 @@ class FileMetadataDB:
 
     def recall(self, thought: str, k: int = 3, scope: str = '') -> str:
         """Semantic recall with adjacent-chunk context. 'scope' filters by path prefix."""
-        if not self._load_model() or self._sentence_model is None:
+        if not self._load_model() or self._lsa is None:
             return "Semantic recall unavailable: model not loaded."
-        embedding = self._sentence_model.encode([thought])[0].tolist()
-        vec_str = "[" + ",".join(str(v) for v in embedding) + "]"
+        tfidf = self._lsa["vectorizer"].transform([thought])
+        vec = self._lsa["svd"].transform(tfidf)[0]
+        vec = vec / (np.linalg.norm(vec) or 1.0)
+        vec_str = "[" + ",".join(str(v) for v in vec.tolist()) + "]"
         conn = self._get_conn()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -158,11 +164,11 @@ class FileMetadataDB:
                         tc.file_path,
                         tc.chunk_index,
                         tc.content,
-                        1 - (tc.embedding <=> %s::vector) AS similarity
+                        1 - (tc.lsa_vec <=> %s::vector) AS similarity
                     FROM text_chunks tc
-                    WHERE tc.embedding IS NOT NULL
+                    WHERE tc.lsa_vec IS NOT NULL
                     {scope_filter}
-                    ORDER BY tc.embedding <=> %s::vector
+                    ORDER BY tc.lsa_vec <=> %s::vector
                     LIMIT %s
                 """, params)
                 hits = cur.fetchall()
@@ -435,7 +441,7 @@ class FileMetadataDB:
                 cur.execute("SELECT COUNT(*) FROM text_chunks")
                 total_chunks = cur.fetchone()[0]
 
-                cur.execute("SELECT COUNT(*) FROM text_chunks WHERE embedding IS NOT NULL")
+                cur.execute("SELECT COUNT(*) FROM text_chunks WHERE lsa_vec IS NOT NULL")
                 embedded_chunks = cur.fetchone()[0]
 
                 cur.execute("""
@@ -651,12 +657,12 @@ files with content analysis, total text chunks, embedded chunks.""",
         ),
         Tool(
             name="semantic_search",
-            description="""Search files by meaning using AI embeddings (pgvector cosine similarity).
+            description="""Search files by meaning using LSA vectors (pgvector cosine similarity).
 
 Unlike full-text search (exact matches), this finds semantically similar content.
 "authentication flow" finds docs about "login process", "user credentials", etc.
 
-Returns similarity scores and text previews. Requires sentence-transformers.""",
+Returns similarity scores and text previews.""",
             inputSchema={
                 "type": "object",
                 "properties": {

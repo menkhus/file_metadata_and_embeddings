@@ -112,7 +112,7 @@ def discover_projects(conn):
 
 # ── Semantic relations via pgvector cosine similarity ────────────────────────
 
-SIMILARITY_THRESHOLD = 0.75  # all-MiniLM-L6-v2: 0.75+ = strongly related topics
+SIMILARITY_THRESHOLD = 0.50  # LSA cosine: 0.50+ = meaningfully related topics
 
 
 def path_to_project(file_path):
@@ -135,12 +135,12 @@ def get_project_centroid(conn, project_path):
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT tc.embedding::text
+            SELECT tc.lsa_vec::text
             FROM text_chunks tc
             JOIN file_metadata fm ON tc.file_path = fm.file_path
             WHERE tc.file_path LIKE %s
               AND fm.file_type = '.md'
-              AND tc.embedding IS NOT NULL
+              AND tc.lsa_vec IS NOT NULL
             LIMIT 10
             """,
             (prefix + "%",),
@@ -189,13 +189,13 @@ def build_relations(conn, projects):
                 """
                 SELECT
                     tc.file_path,
-                    1 - (tc.embedding <=> %s::vector) AS similarity
+                    1 - (tc.lsa_vec <=> %s::vector) AS similarity
                 FROM text_chunks tc
                 JOIN file_metadata fm ON tc.file_path = fm.file_path
-                WHERE tc.embedding IS NOT NULL
+                WHERE tc.lsa_vec IS NOT NULL
                   AND fm.file_type = '.md'
                   AND tc.file_path NOT LIKE %s
-                ORDER BY tc.embedding <=> %s::vector
+                ORDER BY tc.lsa_vec <=> %s::vector
                 LIMIT 40
                 """,
                 (vs, prefix + "%", vs),

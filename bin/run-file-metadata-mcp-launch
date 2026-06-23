@@ -1,0 +1,6 @@
+#!/bin/zsh
+# Wrapper for LaunchAgent: sources ~/.zshrc to pick up DB_PASSWORD, then runs the MCP server.
+# Called by com.mark.file-metadata-mcp.plist (KeepAlive).
+source "${HOME}/.zshrc" 2>/dev/null
+exec /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 \
+    /Users/mark/src/file_metadata_and_embeddings/mcp_server_fixed.py "$@"

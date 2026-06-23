@@ -1,20 +1,22 @@
 #!/usr/bin/env bash
-# run-file-metadata-index — called by launchd nightly at 2am.
+# run-file-metadata-index — runs hourly via com.mark.file-metadata-index LaunchAgent.
+# Scans directories for new/changed files → PostgreSQL file_metadata database.
 # Lives in ~/bin/ (not ~/Documents/) so launchd can execute it without FDA.
 # All paths are absolute so WorkingDirectory doesn't matter.
 
 UV=/Users/mark/.local/bin/uv
-SCRIPT=/Users/mark/Documents/src/file_metadata_and_embeddings/file_metadata_content.py
-DB=/Users/mark/data/file_metadata.sqlite3
+PROJECT=/Users/mark/Documents/src/file_metadata_and_embeddings
+SCRIPT="$PROJECT/file_metadata_content.py"
+LSA_BUILD="$PROJECT/build_lsa_index.py"
 WORKERS=${WORKERS:-4}
 
 EXTENSIONS=".md,.txt,.rst,.py,.go,.rs,.ts,.js,.sh,.bash,.toml,.yaml,.yml,.jsonl"
 DENYLIST="linux-6.*,linux-6*,kernel-*,llvm-project*,chromium*,gecko-dev*,webkit*,vuln_source_data,vuln_source_data-*,dsl.ai,linux-kernel,linux-kernel-*"
 
 run() {
-    "$UV" run --project /Users/mark/Documents/src/file_metadata_and_embeddings \
+    "$UV" run --project "$PROJECT" \
         python3 "$SCRIPT" \
-        --db "$DB" \
+        --skip-embeddings \
         --extensions "$EXTENSIONS" \
         --denylist "$DENYLIST" \
         --workers "$WORKERS" \
@@ -26,3 +28,6 @@ run /Users/mark/Documents/writing
 run /Users/mark/ai_shell_logs
 # ~/.claude is hidden — allowlist overrides the hidden-path check
 run --allowlist /Users/mark/.claude /Users/mark/.claude
+
+# Encode new chunks (lsa_vec IS NULL) using the existing LSA model. Does not refit.
+"$UV" run --project "$PROJECT" python3 "$LSA_BUILD" --incremental

@@ -95,6 +95,11 @@ v1  Initial schema: file_metadata, directory_structure, content_analysis,
 }
 
 import os
+
+# Use only local cache — suppress all HuggingFace Hub network calls.
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 import sqlite3  # kept for legacy type references only
 import hashlib
 import mimetypes
@@ -524,7 +529,10 @@ class TextProcessor:
             self.sentence_model = None
             return
         try:
-            self.sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+            import torch as _torch
+            _device = "mps" if _torch.backends.mps.is_available() else "cpu"
+            self.sentence_model = SentenceTransformer(
+                'nomic-ai/nomic-embed-text-v1.5', trust_remote_code=True, device=_device)
             logger.info("Sentence transformer initialized successfully")
         except Exception as e:
             logger.warning(f"Could not load sentence transformer: {e}")
@@ -736,7 +744,7 @@ class TextProcessor:
             if not texts:
                 return []
             
-            embeddings = self.sentence_model.encode(texts)
+            embeddings = self.sentence_model.encode(texts, prompt_name="document")
             return embeddings.tolist()
         except Exception as e:
             logger.warning(f"Embedding generation failed: {e}")
