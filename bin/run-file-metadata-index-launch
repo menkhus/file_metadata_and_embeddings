@@ -1,0 +1,5 @@
+#!/bin/zsh
+# Wrapper for LaunchAgent: sources ~/.zshrc to pick up DB_PASSWORD, then runs the indexer.
+# Called by com.mark.file-metadata-index.plist hourly.
+source "${HOME}/.zshrc" 2>/dev/null
+exec "${HOME}/bin/run-file-metadata-index" "$@"

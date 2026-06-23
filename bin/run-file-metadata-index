@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# run-file-metadata-index — called by launchd nightly at 2am.
+# Lives in ~/bin/ (not ~/Documents/) so launchd can execute it without FDA.
+# All paths are absolute so WorkingDirectory doesn't matter.
+
+UV=/Users/mark/.local/bin/uv
+SCRIPT=/Users/mark/Documents/src/file_metadata_and_embeddings/file_metadata_content.py
+DB=/Users/mark/data/file_metadata.sqlite3
+WORKERS=${WORKERS:-4}
+
+EXTENSIONS=".md,.txt,.rst,.py,.go,.rs,.ts,.js,.sh,.bash,.toml,.yaml,.yml,.jsonl"
+DENYLIST="linux-6.*,linux-6*,kernel-*,llvm-project*,chromium*,gecko-dev*,webkit*,vuln_source_data,vuln_source_data-*,dsl.ai,linux-kernel,linux-kernel-*"
+
+run() {
+    "$UV" run --project /Users/mark/Documents/src/file_metadata_and_embeddings \
+        python3 "$SCRIPT" \
+        --db "$DB" \
+        --extensions "$EXTENSIONS" \
+        --denylist "$DENYLIST" \
+        --workers "$WORKERS" \
+        "$@"
+}
+
+run /Users/mark/Documents/src
+run /Users/mark/Documents/writing
+run /Users/mark/ai_shell_logs
+# ~/.claude is hidden — allowlist overrides the hidden-path check
+run --allowlist /Users/mark/.claude /Users/mark/.claude

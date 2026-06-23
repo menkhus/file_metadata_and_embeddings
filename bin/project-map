@@ -1,0 +1,362 @@
+#!/Library/Frameworks/Python.framework/Versions/3.13/bin/python3
+"""
+project-map — generate ~/Documents/writing/PROJECT_MAP.md
+
+Discovers projects across ~/src and ~/Documents/writing, uses the
+file_metadata_and_embeddings PostgreSQL index to find semantic relationships
+via TF-IDF keyword overlap, then renders an Obsidian-compatible project map.
+
+Usage:
+    project-map           # generate PROJECT_MAP.md
+    project-map --stubs   # also write per-project stub notes
+"""
+
+import json
+import os
+import re
+import sys
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+
+import numpy as np
+import psycopg2
+import psycopg2.extras
+
+HOME = Path.home()
+SRC_DIR = HOME / "src"
+WRITING_DIR = HOME / "Documents" / "writing"
+TODO_MD = SRC_DIR / "todo.md"
+OUTPUT = WRITING_DIR / "PROJECT_MAP.md"
+
+_PG_DSN = (
+    f"host=localhost dbname=file_metadata user=postgres "
+    f"password={os.environ.get('DB_PASSWORD', '')}"
+)
+
+
+def connect():
+    return psycopg2.connect(_PG_DSN, cursor_factory=psycopg2.extras.DictCursor)
+
+
+# ── Project discovery ─────────────────────────────────────────────────────────
+
+def parse_active_names():
+    """Extract project dir names from the ## N. name headings in todo.md."""
+    if not TODO_MD.exists():
+        return set()
+    active = set()
+    for m in re.finditer(r'^##\s+\d+\.\s+(\S+)', TODO_MD.read_text(), re.MULTILINE):
+        active.add(m.group(1))
+    return active
+
+
+def discover_projects(conn):
+    """Return {name: info_dict} using the DB as the source of truth.
+
+    Any top-level directory under ~/src or ~/Documents/writing that has at
+    least one indexed .md file is included. The seed file for keyword lookup
+    prefers README.md or CLAUDE.md but falls back to any indexed .md in the dir.
+    """
+    active_names = parse_active_names()
+    projects = {}
+
+    for base, tree in [(SRC_DIR, "src"), (WRITING_DIR, "writing")]:
+        prefix = str(base) + "/"
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT file_path
+                FROM file_metadata
+                WHERE file_path LIKE %s
+                  AND file_type = '.md'
+                ORDER BY file_path
+                """,
+                (prefix + "%",),
+            )
+            rows = cur.fetchall()
+
+        # Group paths by their immediate child dir name
+        dir_files: dict[str, list[str]] = defaultdict(list)
+        for row in rows:
+            rel = row["file_path"][len(prefix):]
+            parts = rel.split("/")
+            if len(parts) >= 2:          # file is inside a subdir
+                dir_files[parts[0]].append(row["file_path"])
+
+        for name, md_files in dir_files.items():
+            if name.startswith("."):
+                continue
+            d = base / name
+            # Prefer README.md > CLAUDE.md > first indexed .md
+            readme = str(d / "README.md")
+            claude_md = str(d / "CLAUDE.md")
+            if readme in md_files:
+                seed = readme
+            elif claude_md in md_files:
+                seed = claude_md
+            else:
+                seed = md_files[0]
+
+            projects[name] = {
+                "name": name,
+                "path": str(d),
+                "tree": tree,
+                "active": name in active_names,
+                "seed_file": seed,
+                "md_count": len(md_files),
+            }
+
+    return projects
+
+
+# ── Semantic relations via pgvector cosine similarity ────────────────────────
+
+SIMILARITY_THRESHOLD = 0.75  # all-MiniLM-L6-v2: 0.75+ = strongly related topics
+
+
+def path_to_project(file_path):
+    """Map an indexed file path to its project dir name, or None."""
+    fp = Path(file_path)
+    for base in (SRC_DIR, WRITING_DIR):
+        try:
+            rel = fp.relative_to(base)
+            first = rel.parts[0] if rel.parts else None
+            if first and first != "projects":
+                return first
+        except ValueError:
+            pass
+    return None
+
+
+def get_project_centroid(conn, project_path):
+    """Average embedding across up to 10 markdown chunks from this project."""
+    prefix = project_path + "/"
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT tc.embedding::text
+            FROM text_chunks tc
+            JOIN file_metadata fm ON tc.file_path = fm.file_path
+            WHERE tc.file_path LIKE %s
+              AND fm.file_type = '.md'
+              AND tc.embedding IS NOT NULL
+            LIMIT 10
+            """,
+            (prefix + "%",),
+        )
+        rows = cur.fetchall()
+
+    if not rows:
+        return None
+
+    vecs = []
+    for row in rows:
+        vec = np.fromstring(row[0].strip("[]"), sep=",")
+        if vec.size:
+            vecs.append(vec)
+
+    return np.mean(vecs, axis=0) if vecs else None
+
+
+def vec_str(centroid):
+    return "[" + ",".join(f"{x:.8f}" for x in centroid.tolist()) + "]"
+
+
+def build_relations(conn, projects):
+    """
+    For each project, compute a centroid from its markdown chunk embeddings,
+    then find other projects whose chunks are cosine-close via pgvector <=>
+    """
+    relations = defaultdict(set)
+
+    # Compute per-project centroids
+    centroids = {}
+    for name, info in projects.items():
+        c = get_project_centroid(conn, info["path"])
+        if c is not None:
+            centroids[name] = c
+
+    print(f"  {len(centroids)}/{len(projects)} projects have embeddings", file=sys.stderr)
+
+    # ANN search: for each project find chunks from other projects that are close
+    for name, centroid in centroids.items():
+        prefix = projects[name]["path"] + "/"
+        vs = vec_str(centroid)
+
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    tc.file_path,
+                    1 - (tc.embedding <=> %s::vector) AS similarity
+                FROM text_chunks tc
+                JOIN file_metadata fm ON tc.file_path = fm.file_path
+                WHERE tc.embedding IS NOT NULL
+                  AND fm.file_type = '.md'
+                  AND tc.file_path NOT LIKE %s
+                ORDER BY tc.embedding <=> %s::vector
+                LIMIT 40
+                """,
+                (vs, prefix + "%", vs),
+            )
+            seen_others = set()
+            for row in cur.fetchall():
+                if row["similarity"] < SIMILARITY_THRESHOLD:
+                    continue
+                other = path_to_project(row["file_path"])
+                if other and other != name and other in projects and other not in seen_others:
+                    seen_others.add(other)
+                    relations[name].add(other)
+                    relations[other].add(name)
+
+    return relations, {}
+
+
+# ── Clustering (union-find) ──────────────────────────────────────────────────
+
+def cluster_projects(projects, relations):
+    parent = {n: n for n in projects}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(x, y):
+        parent[find(x)] = find(y)
+
+    for name, related in relations.items():
+        for other in related:
+            union(name, other)
+
+    groups = defaultdict(list)
+    for name in projects:
+        groups[find(name)].append(name)
+    return [sorted(g) for g in groups.values()]
+
+
+def cluster_label(names, relations):
+    """Label a cluster by its most-connected member (hub project)."""
+    by_degree = sorted(names, key=lambda n: -len(relations.get(n, set()) & set(names)))
+    hub = by_degree[0]
+    rest = [n for n in by_degree[1:3] if n != hub]
+    label = hub
+    if rest:
+        label += " · " + " · ".join(rest)
+    return label
+
+
+# ── Rendering ────────────────────────────────────────────────────────────────
+
+def render_map(projects, clusters, relations, project_keywords):
+    now = datetime.now().strftime("%Y-%m-%d")
+    lines = [
+        "# Project Map",
+        "",
+        f"_Generated {now}. Run `project-map` to refresh._",
+        "",
+        "---",
+        "",
+    ]
+
+    # Active projects table
+    active = {n: p for n, p in projects.items() if p["active"]}
+    if active:
+        lines += [
+            "## Active Projects",
+            "",
+            "| Project | Tree | Path |",
+            "|---|---|---|",
+        ]
+        for name, info in sorted(active.items()):
+            lines.append(f"| [[{name}]] | {info['tree']} | `{info['path']}` |")
+        lines += ["", "---", ""]
+
+    # Semantic clusters (multi-member only)
+    lines += ["## Semantic Clusters", ""]
+    big = sorted([c for c in clusters if len(c) > 1], key=lambda c: -len(c))
+    for cluster in big:
+        label = cluster_label(cluster, relations)
+        lines.append(f"### {label}")
+        lines.append("")
+        for name in cluster:
+            info = projects[name]
+            marker = " ⚡" if info["active"] else ""
+            related = sorted(relations.get(name, []) & projects.keys())
+            rel_str = ", ".join(f"[[{r}]]" for r in related[:5]) if related else "—"
+            lines.append(
+                f"- [[{name}]]{marker} (`{info['tree']}`) → {rel_str}"
+            )
+        lines.append("")
+
+    # Singletons
+    singletons = sorted(c[0] for c in clusters if len(c) == 1)
+    if singletons:
+        lines += ["### Unlinked", ""]
+        for name in singletons:
+            info = projects[name]
+            lines.append(f"- [[{name}]] (`{info['tree']}`)")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+# ── Stub notes ───────────────────────────────────────────────────────────────
+
+def write_stubs(projects, project_keywords):
+    stubs_dir = WRITING_DIR / "projects"
+    stubs_dir.mkdir(exist_ok=True)
+    written = 0
+    for name, info in projects.items():
+        stub = stubs_dir / f"{name}.md"
+        if stub.exists():
+            continue
+        kws = project_keywords.get(name, [])
+        tags = ", ".join(f'"{k}"' for k in kws[:4])
+        stub.write_text(
+            f"---\n"
+            f"tags: [{tags}]\n"
+            f"status: {'active' if info['active'] else 'background'}\n"
+            f"path: {info['path']}\n"
+            f"tree: {info['tree']}\n"
+            f"---\n\n"
+            f"# {name}\n\n"
+            f"[[PROJECT_MAP]]\n"
+        )
+        written += 1
+    print(f"  Stubs written: {written} new (in {stubs_dir}/)", file=sys.stderr)
+
+
+# ── Main ─────────────────────────────────────────────────────────────────────
+
+def main():
+    stubs = "--stubs" in sys.argv
+
+    conn = connect()
+    try:
+        print("Discovering projects...", file=sys.stderr)
+        projects = discover_projects(conn)
+        print(f"  {len(projects)} projects found", file=sys.stderr)
+
+        print("Building semantic relations...", file=sys.stderr)
+        relations, project_keywords = build_relations(conn, projects)
+        linked = sum(1 for v in relations.values() if v)
+        print(f"  {linked} projects have semantic links", file=sys.stderr)
+
+        print("Clustering...", file=sys.stderr)
+        clusters = cluster_projects(projects, relations)
+
+        content = render_map(projects, clusters, relations, project_keywords)
+        OUTPUT.write_text(content)
+        print(f"Written: {OUTPUT}", file=sys.stderr)
+
+        if stubs:
+            write_stubs(projects, {})
+    finally:
+        conn.close()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,5 @@
+#!/bin/zsh
+# Wrapper for LaunchAgent: sources ~/.zshrc to pick up DB_PASSWORD, then runs project-map.
+# Called by com.mark.project-map.plist at 07:00 daily.
+source "${HOME}/.zshrc" 2>/dev/null
+exec "${HOME}/bin/project-map" "$@"
