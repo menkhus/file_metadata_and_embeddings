@@ -25,9 +25,10 @@ run() {
 
 run /Users/mark/Documents/src
 run /Users/mark/Documents/writing
-run /Users/mark/ai_shell_logs
 # ~/.claude is hidden — allowlist overrides the hidden-path check
 run --allowlist /Users/mark/.claude /Users/mark/.claude
+# ~/ai_shell_logs — removed: path never existed. Ollama sessions are in
+# ~/Documents/src/llm_session_database/llm_sessions.db (SQLite) — needs extractor ER.
 
 # Encode new chunks (lsa_vec IS NULL) using the existing LSA model. Does not refit.
 "$UV" run --project "$PROJECT" python3 "$LSA_BUILD" --incremental
