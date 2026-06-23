@@ -9,6 +9,7 @@ PROJECT=/Users/mark/Documents/src/file_metadata_and_embeddings
 SCRIPT="$PROJECT/file_metadata_content.py"
 LSA_BUILD="$PROJECT/build_lsa_index.py"
 GEMINI_EXTRACT="$PROJECT/gemini_log_extractor.py"
+OLLAMA_EXTRACT="$PROJECT/ollama_log_extractor.py"
 WORKERS=${WORKERS:-4}
 
 EXTENSIONS=".md,.txt,.rst,.py,.go,.rs,.ts,.js,.sh,.bash,.toml,.yaml,.yml,.jsonl"
@@ -31,6 +32,9 @@ run --allowlist /Users/mark/.claude /Users/mark/.claude
 # ~/.gemini/extracted is hidden — extract session JSONs to .md first, then scan
 "$UV" run --project "$PROJECT" python3 "$GEMINI_EXTRACT"
 run --allowlist /Users/mark/.gemini/extracted /Users/mark/.gemini/extracted
+# ~/.ollama_extracted is hidden — extract SQLite sessions to .md first, then scan
+"$UV" run --project "$PROJECT" python3 "$OLLAMA_EXTRACT"
+run --allowlist /Users/mark/.ollama_extracted /Users/mark/.ollama_extracted
 
 # Encode new chunks (lsa_vec IS NULL) using the existing LSA model. Does not refit.
 "$UV" run --project "$PROJECT" python3 "$LSA_BUILD" --incremental
