@@ -127,7 +127,9 @@ class FileMetadataDB:
                         JOIN file_metadata fm ON tc.file_path = fm.file_path
                         WHERE tc.lsa_vec IS NOT NULL
                     )
-                    SELECT * FROM ranked ORDER BY similarity DESC LIMIT %s
+                    SELECT * FROM ranked
+                    WHERE similarity IS NOT NULL AND similarity = similarity
+                    ORDER BY similarity DESC LIMIT %s
                 """, [vec_str, limit])
                 rows = cur.fetchall()
         finally:
@@ -174,7 +176,9 @@ class FileMetadataDB:
                         WHERE tc.lsa_vec IS NOT NULL
                         {scope_filter}
                     )
-                    SELECT * FROM ranked ORDER BY similarity DESC LIMIT %s
+                    SELECT * FROM ranked
+                    WHERE similarity IS NOT NULL AND similarity = similarity
+                    ORDER BY similarity DESC LIMIT %s
                 """, params)
                 hits = cur.fetchall()
 
