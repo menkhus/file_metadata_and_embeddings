@@ -568,6 +568,36 @@ class AutographManager:
 
         return {"repo": repo_node_id, "sessions_added": sessions_added}
 
+    def search_nodes(self, query: str, node_types: Optional[List[str]] = None, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Deterministic keyword search over all nodes (not just 'context' nodes
+        with embeddings). Session/repo/commit nodes have no embedding today,
+        so this is a text-match search over label + metadata -- graceful
+        degradation, same principle as the rest of this module. Used by
+        ghost's autograph_bridge for cross-project search.
+        """
+        terms = [t.lower() for t in query.split() if t]
+        if not terms:
+            return []
+
+        results = []
+        for node in self._read_nodes():
+            if node_types and node.node_type not in node_types:
+                continue
+            haystack = f"{node.label} {node.metadata}".lower()
+            score = sum(haystack.count(t) for t in terms)
+            if score > 0:
+                results.append({
+                    "node_id": node.node_id,
+                    "node_type": node.node_type,
+                    "label": node.label,
+                    "score": score,
+                    "last_seen": node.last_seen,
+                })
+
+        results.sort(key=lambda r: -r["score"])
+        return results[:limit]
+
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics about the autograph graph"""
         nodes = self._read_nodes()
