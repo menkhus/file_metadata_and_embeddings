@@ -10,12 +10,18 @@ Design Principles:
 - Embeddings for semantic similarity (reuses existing FAISS infrastructure)
 - Low friction: learns from normal grounding workflow
 - Graceful degradation: works without embeddings, better with them
+
+Cross-project persistence: ingest_git_log() and ingest_session_memory() feed
+git commit history and per-project Claude memory files into the same graph
+as repo/commit/session nodes -- the "session" node type was declared in the
+schema from the start but had no ingestion path until now.
 """
 
 import csv
 import json
 import hashlib
 import os
+import subprocess
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass, asdict
@@ -454,6 +460,114 @@ class AutographManager:
         suggestions.sort(key=lambda x: (-x["confidence"], -x["total_weight"]))
         return suggestions[:max_suggestions]
 
+    def ingest_git_log(self, repo_path: str, repo_label: Optional[str] = None, limit: int = 200) -> Dict[str, Any]:
+        """
+        Ingest git commit history from a repo as repo/commit/file nodes and edges.
+
+        Creates one 'repo' node, one 'commit' node per commit (label = subject
+        line), an 'authored' edge (repo -> commit), and a 'touches' edge
+        (commit -> file) per file in that commit's diff. Additive only --
+        existing grounding edge types (accepted/rejected/ignored) are untouched.
+        """
+        repo_path = os.path.abspath(repo_path)
+        repo_label = repo_label or os.path.basename(repo_path.rstrip('/'))
+        repo_node_id = f"repo:{repo_label}"
+        self._get_or_create_node(repo_node_id, "repo", repo_path)
+
+        result = subprocess.run(
+            ["git", "-C", repo_path, "log", "--no-merges", f"-n{limit}",
+             "--pretty=format:COMMIT\x1f%H\x1f%ai\x1f%s", "--name-only"],
+            capture_output=True, text=True, check=True
+        )
+
+        commits_added = 0
+        files_touched = 0
+        current_hash = None
+
+        for line in result.stdout.splitlines():
+            if line.startswith("COMMIT\x1f"):
+                _, commit_hash, commit_date, subject = line.split("\x1f", 3)
+                current_hash = commit_hash
+                commit_node_id = f"commit:{repo_label}:{commit_hash[:10]}"
+                self._get_or_create_node(commit_node_id, "commit", subject)
+                self._write_edge(KnowledgeEdge(
+                    timestamp=commit_date,
+                    source_node=repo_node_id,
+                    edge_type="authored",
+                    target_node=commit_node_id,
+                    weight=1.0,
+                    context_summary=subject,
+                    command="git_ingest"
+                ))
+                commits_added += 1
+            elif line.strip() and current_hash:
+                file_label = line.strip()
+                file_node_id = f"file:{os.path.basename(file_label)}"
+                self._get_or_create_node(file_node_id, "file", file_label)
+                self._write_edge(KnowledgeEdge(
+                    timestamp=datetime.utcnow().isoformat() + "Z",
+                    source_node=f"commit:{repo_label}:{current_hash[:10]}",
+                    edge_type="touches",
+                    target_node=file_node_id,
+                    weight=1.0,
+                    context_summary=file_label,
+                    command="git_ingest"
+                ))
+                files_touched += 1
+
+        return {
+            "repo": repo_node_id,
+            "commits_added": commits_added,
+            "file_edges": files_touched
+        }
+
+    def ingest_session_memory(self, memory_dir: str, repo_label: str) -> Dict[str, Any]:
+        """
+        Ingest per-project Claude memory files as 'session' nodes linked to a repo.
+
+        Each *.md file in memory_dir (except the MEMORY.md index itself) becomes
+        one session node, labeled from its frontmatter 'description' (falling
+        back to 'name', then the filename). Wires up the 'session' node type
+        that was declared in the schema from the start but never populated.
+        """
+        memory_path = Path(memory_dir)
+        repo_node_id = f"repo:{repo_label}"
+        self._get_or_create_node(repo_node_id, "repo", repo_label)
+
+        sessions_added = 0
+        for md_file in sorted(memory_path.glob("*.md")):
+            if md_file.name == "MEMORY.md":
+                continue
+
+            text = md_file.read_text(encoding="utf-8", errors="replace")
+            name = md_file.stem
+            description = ""
+            if text.startswith("---"):
+                end = text.find("\n---", 3)
+                if end != -1:
+                    for fm_line in text[3:end].splitlines():
+                        stripped = fm_line.strip()
+                        if stripped.startswith("description:"):
+                            description = stripped.split(":", 1)[1].strip().strip('"')
+                        elif stripped.startswith("name:"):
+                            name = stripped.split(":", 1)[1].strip()
+
+            session_node_id = f"session:{repo_label}:{md_file.stem}"
+            label = description or name
+            self._get_or_create_node(session_node_id, "session", label)
+            self._write_edge(KnowledgeEdge(
+                timestamp=datetime.utcfromtimestamp(md_file.stat().st_mtime).isoformat() + "Z",
+                source_node=repo_node_id,
+                edge_type="recorded",
+                target_node=session_node_id,
+                weight=1.0,
+                context_summary=label,
+                command="memory_ingest"
+            ))
+            sessions_added += 1
+
+        return {"repo": repo_node_id, "sessions_added": sessions_added}
+
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics about the autograph graph"""
         nodes = self._read_nodes()
@@ -496,6 +610,15 @@ if __name__ == "__main__":
     kg_path = sys.argv[1] if len(sys.argv) > 1 else "./knowledge_graph"
     manager = AutographManager(kg_path)
 
-    # Print stats
-    stats = manager.get_stats()
-    print(json.dumps(stats, indent=2))
+    if len(sys.argv) > 2 and sys.argv[2] == "ingest-git":
+        repo_arg = sys.argv[3]
+        label_arg = sys.argv[4] if len(sys.argv) > 4 else None
+        print(json.dumps(manager.ingest_git_log(repo_arg, label_arg), indent=2))
+    elif len(sys.argv) > 2 and sys.argv[2] == "ingest-memory":
+        memory_arg = sys.argv[3]
+        label_arg = sys.argv[4]
+        print(json.dumps(manager.ingest_session_memory(memory_arg, label_arg), indent=2))
+    else:
+        # Print stats
+        stats = manager.get_stats()
+        print(json.dumps(stats, indent=2))

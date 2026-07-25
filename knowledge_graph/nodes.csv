@@ -6,3 +6,980 @@ context:a2dfc6fa,context,testing postgresql pgvector migration,emb:context:a2dfc
 file:backfill_embeddings.py,file,backfill_embeddings.py,,2026-05-19T09:10:48.323860Z,2026-05-19T09:10:48.323860Z,{}
 context:32c380ee,context,verifying all 12 file-metadata MCP tools after PostgreSQL migration,emb:context:32c380ee,2026-05-19T09:20:37.242618Z,2026-05-19T09:20:37.242618Z,{}
 file:migrate_sqlite_to_pg.py,file,migrate_sqlite_to_pg.py,,2026-05-19T09:20:37.242992Z,2026-05-19T09:20:37.242992Z,{}
+repo:file_metadata_and_embeddings,repo,/Users/mark/src/file_metadata_and_embeddings,,2026-07-25T23:43:44.548010Z,2026-07-25T23:43:44.548010Z,{}
+commit:file_metadata_and_embeddings:7cee709a4e,commit,Fix NaN filter: use != 'NaN'::float not = self comparison,,2026-07-25T23:43:44.633570Z,2026-07-25T23:43:44.633570Z,{}
+commit:file_metadata_and_embeddings:0b61a5c1ff,commit,Filter NaN similarity scores from semantic search and recall,,2026-07-25T23:43:44.634779Z,2026-07-25T23:43:44.634779Z,{}
+commit:file_metadata_and_embeddings:ef8ca99d4d,commit,Fix HNSW pre-filter bypass in semantic search and recall,,2026-07-25T23:43:44.635101Z,2026-07-25T23:43:44.635101Z,{}
+commit:file_metadata_and_embeddings:64848a382f,commit,Fix pipeline consistency: INSERT column name and skip-logic gap,,2026-07-25T23:43:44.635409Z,2026-07-25T23:43:44.635409Z,{}
+file:file_metadata_content.py,file,file_metadata_content.py,,2026-07-25T23:43:44.635591Z,2026-07-25T23:43:44.635591Z,{}
+commit:file_metadata_and_embeddings:67b7a387d5,commit,Implement Ollama session log indexing,,2026-07-25T23:43:44.635773Z,2026-07-25T23:43:44.635773Z,{}
+file:run-file-metadata-index,file,bin/run-file-metadata-index,,2026-07-25T23:43:44.635967Z,2026-07-25T23:43:44.635967Z,{}
+file:ollama_log_extractor.py,file,ollama_log_extractor.py,,2026-07-25T23:43:44.636156Z,2026-07-25T23:43:44.636156Z,{}
+commit:file_metadata_and_embeddings:dd10edebc3,commit,Implement Gemini session log indexing,,2026-07-25T23:43:44.636355Z,2026-07-25T23:43:44.636355Z,{}
+file:gemini_log_extractor.py,file,gemini_log_extractor.py,,2026-07-25T23:43:44.636716Z,2026-07-25T23:43:44.636716Z,{}
+commit:file_metadata_and_embeddings:bf08a1886e,commit,Fix dead ai_shell_logs path; add Gemini and Ollama indexing ERs,,2026-07-25T23:43:44.636949Z,2026-07-25T23:43:44.636949Z,{}
+file:ENHANCEMENT_REQUEST_gemini_log_indexing.md,file,ENHANCEMENT_REQUEST_gemini_log_indexing.md,,2026-07-25T23:43:44.637156Z,2026-07-25T23:43:44.637156Z,{}
+file:ENHANCEMENT_REQUEST_ollama_log_indexing.md,file,ENHANCEMENT_REQUEST_ollama_log_indexing.md,,2026-07-25T23:43:44.637358Z,2026-07-25T23:43:44.637358Z,{}
+commit:file_metadata_and_embeddings:89745839c3,commit,"Replace nomic neural embeddings with LSA (TF-IDF + TruncatedSVD, 256-dim)",,2026-07-25T23:43:44.637770Z,2026-07-25T23:43:44.637770Z,{}
+file:.gitignore,file,.gitignore,,2026-07-25T23:43:44.637988Z,2026-07-25T23:43:44.637988Z,{}
+file:TODO_apple_intents.md,file,TODO_apple_intents.md,,2026-07-25T23:43:44.638209Z,2026-07-25T23:43:44.638209Z,{}
+file:com.mark.file-metadata-mcp.plist,file,bin/com.mark.file-metadata-mcp.plist,,2026-07-25T23:43:44.638604Z,2026-07-25T23:43:44.638604Z,{}
+file:project-map,file,bin/project-map,,2026-07-25T23:43:44.639264Z,2026-07-25T23:43:44.639264Z,{}
+file:run-file-metadata-mcp-launch,file,bin/run-file-metadata-mcp-launch,,2026-07-25T23:43:44.639733Z,2026-07-25T23:43:44.639733Z,{}
+file:build_lsa_index.py,file,build_lsa_index.py,,2026-07-25T23:43:44.640549Z,2026-07-25T23:43:44.640549Z,{}
+file:config.json,file,knowledge_graph/config.json,,2026-07-25T23:43:44.641030Z,2026-07-25T23:43:44.641030Z,{}
+file:edges.csv,file,knowledge_graph/edges.csv,,2026-07-25T23:43:44.641553Z,2026-07-25T23:43:44.641553Z,{}
+file:embedding_index.json,file,knowledge_graph/embedding_index.json,,2026-07-25T23:43:44.641796Z,2026-07-25T23:43:44.641796Z,{}
+file:embeddings.npy,file,knowledge_graph/embeddings.npy,,2026-07-25T23:43:44.642041Z,2026-07-25T23:43:44.642041Z,{}
+file:nodes.csv,file,knowledge_graph/nodes.csv,,2026-07-25T23:43:44.642288Z,2026-07-25T23:43:44.642288Z,{}
+file:find_most_similar_v2.py,file,tools_v2/find_most_similar_v2.py,,2026-07-25T23:43:44.642731Z,2026-07-25T23:43:44.642731Z,{}
+commit:file_metadata_and_embeddings:cb9f1ca8be,commit,Add bin/ scripts and LaunchAgent plists,,2026-07-25T23:43:44.642978Z,2026-07-25T23:43:44.642978Z,{}
+file:com.mark.file-metadata-index.plist,file,bin/com.mark.file-metadata-index.plist,,2026-07-25T23:43:44.643229Z,2026-07-25T23:43:44.643229Z,{}
+file:com.mark.project-map.plist,file,bin/com.mark.project-map.plist,,2026-07-25T23:43:44.643497Z,2026-07-25T23:43:44.643497Z,{}
+file:project-map-launch,file,bin/project-map-launch,,2026-07-25T23:43:44.643965Z,2026-07-25T23:43:44.643965Z,{}
+file:run-file-metadata-index-launch,file,bin/run-file-metadata-index-launch,,2026-07-25T23:43:44.644417Z,2026-07-25T23:43:44.644417Z,{}
+commit:file_metadata_and_embeddings:0b5b204bc4,commit,Add recall() MCP tool with adjacent-chunk context,,2026-07-25T23:43:44.644683Z,2026-07-25T23:43:44.644683Z,{}
+commit:file_metadata_and_embeddings:73a1c277bb,commit,"Switch to paragraph-boundary chunking, decommission FAISS",,2026-07-25T23:43:44.645150Z,2026-07-25T23:43:44.645150Z,{}
+file:_deprecated_build_faiss_index.py,file,_deprecated_build_faiss_index.py,,2026-07-25T23:43:44.645460Z,2026-07-25T23:43:44.645460Z,{}
+file:_deprecated_faiss_index_manager.py,file,_deprecated_faiss_index_manager.py,,2026-07-25T23:43:44.645763Z,2026-07-25T23:43:44.645763Z,{}
+file:_deprecated_test_faiss_index_manager.py,file,_deprecated_test_faiss_index_manager.py,,2026-07-25T23:43:44.646068Z,2026-07-25T23:43:44.646068Z,{}
+commit:file_metadata_and_embeddings:5e0de4f276,commit,Fix backfill_embeddings for PostgreSQL schema,,2026-07-25T23:43:44.646838Z,2026-07-25T23:43:44.646838Z,{}
+commit:file_metadata_and_embeddings:97b804c055,commit,Fix conn.execute() → conn.cursor().execute() for psycopg2 connectivity check,,2026-07-25T23:43:44.647501Z,2026-07-25T23:43:44.647501Z,{}
+commit:file_metadata_and_embeddings:20351d569a,commit,Update CLAUDE.md: PostgreSQL+pgvector backend (SQLite+FAISS retired),,2026-07-25T23:43:44.648059Z,2026-07-25T23:43:44.648059Z,{}
+file:CLAUDE.md,file,CLAUDE.md,,2026-07-25T23:43:44.648356Z,2026-07-25T23:43:44.648356Z,{}
+commit:file_metadata_and_embeddings:eb50da6575,commit,Port MCP server and tools_v2 from SQLite+FAISS to PostgreSQL+pgvector,,2026-07-25T23:43:44.648664Z,2026-07-25T23:43:44.648664Z,{}
+file:file_query_tool_v2.py,file,tools_v2/file_query_tool_v2.py,,2026-07-25T23:43:44.649210Z,2026-07-25T23:43:44.649210Z,{}
+file:find_using_fts_v2.py,file,tools_v2/find_using_fts_v2.py,,2026-07-25T23:43:44.649759Z,2026-07-25T23:43:44.649759Z,{}
+commit:file_metadata_and_embeddings:ecca2fdaa3,commit,Add Phase 3 embedding backfill script,,2026-07-25T23:43:44.650081Z,2026-07-25T23:43:44.650081Z,{}
+commit:file_metadata_and_embeddings:cb606b8b7f,commit,Add SQLite → PostgreSQL migration script,,2026-07-25T23:43:44.650642Z,2026-07-25T23:43:44.650642Z,{}
+commit:file_metadata_and_embeddings:60597e9253,commit,Add PostgreSQL + pgvector migration CR,,2026-07-25T23:43:44.651201Z,2026-07-25T23:43:44.651201Z,{}
+file:ENHANCEMENT_REQUEST_postgresql_migration.md,file,ENHANCEMENT_REQUEST_postgresql_migration.md,,2026-07-25T23:43:44.651520Z,2026-07-25T23:43:44.651520Z,{}
+commit:file_metadata_and_embeddings:9dc204e47a,commit,Fix WAL checkpoint on close; guard TF-IDF against missing sklearn imports,,2026-07-25T23:43:44.651839Z,2026-07-25T23:43:44.651839Z,{}
+commit:file_metadata_and_embeddings:4069fd0e09,commit,Add claude_hooks/: versioned Claude Code grounding pipeline install,,2026-07-25T23:43:44.652429Z,2026-07-25T23:43:44.652429Z,{}
+file:INSTALL.md,file,claude_hooks/INSTALL.md,,2026-07-25T23:43:44.652794Z,2026-07-25T23:43:44.652794Z,{}
+file:autoground.py,file,claude_hooks/autoground.py,,2026-07-25T23:43:44.653153Z,2026-07-25T23:43:44.653153Z,{}
+file:context-status.py,file,claude_hooks/context-status.py,,2026-07-25T23:43:44.653495Z,2026-07-25T23:43:44.653495Z,{}
+file:context-stop.py,file,claude_hooks/context-stop.py,,2026-07-25T23:43:44.653842Z,2026-07-25T23:43:44.653842Z,{}
+file:prompt-ground.py,file,claude_hooks/prompt-ground.py,,2026-07-25T23:43:44.654191Z,2026-07-25T23:43:44.654191Z,{}
+file:session-start-ground.py,file,claude_hooks/session-start-ground.py,,2026-07-25T23:43:44.654542Z,2026-07-25T23:43:44.654542Z,{}
+file:settings.json.example,file,claude_hooks/settings.json.example,,2026-07-25T23:43:44.654903Z,2026-07-25T23:43:44.654903Z,{}
+file:test_prompt_ground.py,file,claude_hooks/test_prompt_ground.py,,2026-07-25T23:43:44.655275Z,2026-07-25T23:43:44.655275Z,{}
+commit:file_metadata_and_embeddings:f1ba8f219c,commit,"Add proactive MCP use guidance, iCloud paths, dual-pool delta docs",,2026-07-25T23:43:44.655662Z,2026-07-25T23:43:44.655662Z,{}
+file:TODO_substrate_paper.md,file,TODO_substrate_paper.md,,2026-07-25T23:43:44.656338Z,2026-07-25T23:43:44.656338Z,{}
+file:test.sh,file,test.sh,,2026-07-25T23:43:44.656705Z,2026-07-25T23:43:44.656705Z,{}
+commit:file_metadata_and_embeddings:7405f94836,commit,Fix hidden-path allowlist for ~/.claude indexing; add ~/.claude as scan target,,2026-07-25T23:43:44.657072Z,2026-07-25T23:43:44.657072Z,{}
+commit:file_metadata_and_embeddings:4e3a894a81,commit,"Fix import ordering, quiet default logging, spurious sentence_transformers warning",,2026-07-25T23:43:44.658066Z,2026-07-25T23:43:44.658066Z,{}
+commit:file_metadata_and_embeddings:bff1306664,commit,"Expand indexer: multi-language extensions, denylist external corpora, nightly launchd schedule",,2026-07-25T23:43:44.658748Z,2026-07-25T23:43:44.658748Z,{}
+commit:file_metadata_and_embeddings:1d83c9dfc7,commit,Add versioned readme tables and -- comments to both SQLite databases,,2026-07-25T23:43:44.659451Z,2026-07-25T23:43:44.659451Z,{}
+file:substrate_db.py,file,substrate_db.py,,2026-07-25T23:43:44.660147Z,2026-07-25T23:43:44.660147Z,{}
+commit:file_metadata_and_embeddings:ba930ee362,commit,"Add session-end handler, dual-pool grounding, session chain retrieval",,2026-07-25T23:43:44.660538Z,2026-07-25T23:43:44.660538Z,{}
+file:SESSION_NOTES_2026-04-10.md,file,SESSION_NOTES_2026-04-10.md,,2026-07-25T23:43:44.661246Z,2026-07-25T23:43:44.661246Z,{}
+file:autoground_query.py,file,autoground_query.py,,2026-07-25T23:43:44.661972Z,2026-07-25T23:43:44.661972Z,{}
+file:extract_idea_signatures.py,file,extract_idea_signatures.py,,2026-07-25T23:43:44.662345Z,2026-07-25T23:43:44.662345Z,{}
+file:session_end.py,file,session_end.py,,2026-07-25T23:43:44.662717Z,2026-07-25T23:43:44.662717Z,{}
+commit:file_metadata_and_embeddings:920e64aa24,commit,"Mark completed TODO items — Track 1 schema/db, Track 2 behaviors, Track 3 hooks all done",,2026-07-25T23:43:44.663411Z,2026-07-25T23:43:44.663411Z,{}
+commit:file_metadata_and_embeddings:62a3546918,commit,Mark MVG items 1-5 complete in TODO,,2026-07-25T23:43:44.664132Z,2026-07-25T23:43:44.664132Z,{}
+commit:file_metadata_and_embeddings:3b0f417c44,commit,"Add minimum viable grounding: substrate_db.py, autoground_query.py, TODO updated",,2026-07-25T23:43:44.664837Z,2026-07-25T23:43:44.664837Z,{}
+commit:file_metadata_and_embeddings:03a0cf277c,commit,"Add test.sh index runner, update .gitignore for .claude/ and uv artifacts",,2026-07-25T23:43:44.666215Z,2026-07-25T23:43:44.666215Z,{}
+commit:file_metadata_and_embeddings:b8cf4baf8e,commit,"Improvements and enhanvements needed to make this database load bearing for AI long term memory annotation in a session, with annotations relavant to the prompt.  one rtime per session.",,2026-07-25T23:43:44.667264Z,2026-07-25T23:43:44.667264Z,{}
+file:DESIGN_PROBLEMS_AND_NEXT_ITERATION.md,file,DESIGN_PROBLEMS_AND_NEXT_ITERATION.md,,2026-07-25T23:43:44.667663Z,2026-07-25T23:43:44.667663Z,{}
+file:operational_problems.md,file,operational_problems.md,,2026-07-25T23:43:44.668391Z,2026-07-25T23:43:44.668391Z,{}
+commit:file_metadata_and_embeddings:1997b228f6,commit,"Reframe prompt processing as micro-processing pipeline — aifilter behaviors, three pipes, Claim 4 added, section 5 new",,2026-07-25T23:43:44.668816Z,2026-07-25T23:43:44.668816Z,{}
+file:ENHANCEMENT_REQUEST_autogrounding_layer.md,file,ENHANCEMENT_REQUEST_autogrounding_layer.md,,2026-07-25T23:43:44.669228Z,2026-07-25T23:43:44.669228Z,{}
+file:PAPER_OUTLINE.md,file,PAPER_OUTLINE.md,,2026-07-25T23:43:44.669642Z,2026-07-25T23:43:44.669642Z,{}
+commit:file_metadata_and_embeddings:06bd6effa4,commit,Add 'slipping notes under the door' metaphor to opening — the mechanism in plain language,,2026-07-25T23:43:44.670419Z,2026-07-25T23:43:44.670419Z,{}
+commit:file_metadata_and_embeddings:2cfc2c8062,commit,"Add substrate paper outline and implementation TODO — two papers, two tracks, minimum viable grounding path",,2026-07-25T23:43:44.671202Z,2026-07-25T23:43:44.671202Z,{}
+commit:file_metadata_and_embeddings:84cd74e6d3,commit,"Add Enhancement 4 — one DB all feeds, ghost as feed, self-labeling, personal knowledge substrate",,2026-07-25T23:43:44.672359Z,2026-07-25T23:43:44.672359Z,{}
+commit:file_metadata_and_embeddings:7faaf2c443,commit,"Add Enhancement 3 — DB as truth, file as rendering, schema, local AI rendering layer, PIM distinction",,2026-07-25T23:43:44.673165Z,2026-07-25T23:43:44.673165Z,{}
+commit:file_metadata_and_embeddings:249513a4e7,commit,"Add autogrounding enhancement request — KG as grounding layer, UserPromptSubmit hook, spell-check + keyword extract + KG query pipeline",,2026-07-25T23:43:44.673967Z,2026-07-25T23:43:44.673967Z,{}
+commit:file_metadata_and_embeddings:016f94fa97,commit,fix: redirect startup prints from stdout to stderr (MCP spec compliance),,2026-07-25T23:43:44.674779Z,2026-07-25T23:43:44.674779Z,{}
+commit:file_metadata_and_embeddings:3ae0cc4c11,commit,"Strip NLTK, LDA, pandas dependencies and dead schema columns",,2026-07-25T23:43:44.675634Z,2026-07-25T23:43:44.675634Z,{}
+commit:file_metadata_and_embeddings:216893eb18,commit,Add scan interrupt tracking to processing_stats,,2026-07-25T23:43:44.676450Z,2026-07-25T23:43:44.676450Z,{}
+commit:file_metadata_and_embeddings:be4722942d,commit,Add Gemini work artifacts and semantic search modified_date,,2026-07-25T23:43:44.677349Z,2026-07-25T23:43:44.677349Z,{}
+file:Oops.rej,file,Oops.rej,,2026-07-25T23:43:44.677915Z,2026-07-25T23:43:44.677915Z,{}
+file:cleanup.patch,file,gemini/cleanup.patch,,2026-07-25T23:43:44.678404Z,2026-07-25T23:43:44.678404Z,{}
+file:0001-add-status-and-interrupted-columns.analysis.md,file,gemini/patches/0001-add-status-and-interrupted-columns.analysis.md,,2026-07-25T23:43:44.678882Z,2026-07-25T23:43:44.678882Z,{}
+file:0001-add-status-and-interrupted-columns.patch,file,gemini/patches/0001-add-status-and-interrupted-columns.patch,,2026-07-25T23:43:44.679355Z,2026-07-25T23:43:44.679355Z,{}
+file:0002-update-record-processing-stats.analysis.md,file,gemini/patches/0002-update-record-processing-stats.analysis.md,,2026-07-25T23:43:44.679864Z,2026-07-25T23:43:44.679864Z,{}
+file:0002-update-record-processing-stats.patch,file,gemini/patches/0002-update-record-processing-stats.patch,,2026-07-25T23:43:44.680358Z,2026-07-25T23:43:44.680358Z,{}
+file:0003-graceful-interrupt-handling.analysis.md,file,gemini/patches/0003-graceful-interrupt-handling.analysis.md,,2026-07-25T23:43:44.680843Z,2026-07-25T23:43:44.680843Z,{}
+file:0003-graceful-interrupt-handling.patch,file,gemini/patches/0003-graceful-interrupt-handling.patch,,2026-07-25T23:43:44.681325Z,2026-07-25T23:43:44.681325Z,{}
+file:todo_gemini.md,file,todo_gemini.md,,2026-07-25T23:43:44.682217Z,2026-07-25T23:43:44.682217Z,{}
+file:todo_plan_mcp_server_fixed.md,file,todo_plan_mcp_server_fixed.md,,2026-07-25T23:43:44.682700Z,2026-07-25T23:43:44.682700Z,{}
+commit:file_metadata_and_embeddings:815c982364,commit,Add enhancement request: directory-level compound queries,,2026-07-25T23:43:44.683186Z,2026-07-25T23:43:44.683186Z,{}
+file:ENHANCEMENT_REQUEST_directory_level_queries.md,file,ENHANCEMENT_REQUEST_directory_level_queries.md,,2026-07-25T23:43:44.683704Z,2026-07-25T23:43:44.683704Z,{}
+commit:file_metadata_and_embeddings:4fe0cd5987,commit,Add cognitive fingerprinting: git logs as records of how you think,,2026-07-25T23:43:44.684182Z,2026-07-25T23:43:44.684182Z,{}
+file:CASE_STUDY_MCP_EFFECTIVENESS.md,file,CASE_STUDY_MCP_EFFECTIVENESS.md,,2026-07-25T23:43:44.684659Z,2026-07-25T23:43:44.684659Z,{}
+commit:file_metadata_and_embeddings:6e67d5581f,commit,Replace per-project indexes with centralized db + git freshness layer,,2026-07-25T23:43:44.685141Z,2026-07-25T23:43:44.685141Z,{}
+commit:file_metadata_and_embeddings:291cd56ad2,commit,Add the noodler's tool: RAG as support for exploratory thinking,,2026-07-25T23:43:44.686072Z,2026-07-25T23:43:44.686072Z,{}
+commit:file_metadata_and_embeddings:a96ae393e6,commit,Add ed lineage: 50 years from teletypes to AI edit primitives,,2026-07-25T23:43:44.686997Z,2026-07-25T23:43:44.686997Z,{}
+commit:file_metadata_and_embeddings:53ffed0a34,commit,Add diffs as AI's secret language: meaning-overloaded primitives,,2026-07-25T23:43:44.687936Z,2026-07-25T23:43:44.687936Z,{}
+commit:file_metadata_and_embeddings:c2d75bb5fc,commit,Add git DAG as semantic filesystem: SQLite parallel universe to .git,,2026-07-25T23:43:44.688868Z,2026-07-25T23:43:44.688868Z,{}
+commit:file_metadata_and_embeddings:8101610adb,commit,Add meta-example: the tool tracing the history of its own ideas,,2026-07-25T23:43:44.689807Z,2026-07-25T23:43:44.689807Z,{}
+commit:file_metadata_and_embeddings:55ad80f502,commit,Add index-on-write architecture: SQLite as the git of knowledge,,2026-07-25T23:43:44.690779Z,2026-07-25T23:43:44.690779Z,{}
+commit:file_metadata_and_embeddings:714f03996b,commit,Add IBM XT moment: persistent context as AI's hard drive,,2026-07-25T23:43:44.691744Z,2026-07-25T23:43:44.691744Z,{}
+commit:file_metadata_and_embeddings:40fa552c5f,commit,Add human experience section: situatedness beats intelligence,,2026-07-25T23:43:44.692713Z,2026-07-25T23:43:44.692713Z,{}
+commit:file_metadata_and_embeddings:11a7627b48,commit,Add emergent capability section: corpus-wide project awareness,,2026-07-25T23:43:44.693691Z,2026-07-25T23:43:44.693691Z,{}
+commit:file_metadata_and_embeddings:d4bc422a5d,commit,"Add design problems doc: freshness, AI tool adoption, multi-AI coordination",,2026-07-25T23:43:44.694667Z,2026-07-25T23:43:44.694667Z,{}
+commit:file_metadata_and_embeddings:a1ed26b7c3,commit,Add case study: MCP effectiveness for cross-project codebase exploration,,2026-07-25T23:43:44.695664Z,2026-07-25T23:43:44.695664Z,{}
+commit:file_metadata_and_embeddings:9ed85aa7db,commit,Rewrite CLAUDE.md as use-case-driven MCP tool guide,,2026-07-25T23:43:44.696662Z,2026-07-25T23:43:44.696662Z,{}
+commit:file_metadata_and_embeddings:bf9d4bb819,commit,Move MCP shim files to dedicated repo ~/src/mcp_local_shim,,2026-07-25T23:43:44.697659Z,2026-07-25T23:43:44.697659Z,{}
+file:examples_mcp_shim.sh,file,examples_mcp_shim.sh,,2026-07-25T23:43:44.698188Z,2026-07-25T23:43:44.698188Z,{}
+file:mcp_shim.py,file,mcp_shim.py,,2026-07-25T23:43:44.698717Z,2026-07-25T23:43:44.698717Z,{}
+file:test_mcp_shim.py,file,test_mcp_shim.py,,2026-07-25T23:43:44.699250Z,2026-07-25T23:43:44.699250Z,{}
+commit:file_metadata_and_embeddings:d5968668a3,commit,Add MCP shim — standalone protocol bridge for tool discovery and invocation,,2026-07-25T23:43:44.699787Z,2026-07-25T23:43:44.699787Z,{}
+commit:file_metadata_and_embeddings:157de2bf6f,commit,Add development notes and TODO docs for Apple Intents and hybrid search,,2026-07-25T23:43:44.701805Z,2026-07-25T23:43:44.701805Z,{}
+file:TODO_hybrid_search.md,file,TODO_hybrid_search.md,,2026-07-25T23:43:44.703340Z,2026-07-25T23:43:44.703340Z,{}
+commit:file_metadata_and_embeddings:dcebdf3280,commit,Document retry logging refactor plan with implementation details,,2026-07-25T23:43:44.703880Z,2026-07-25T23:43:44.703880Z,{}
+file:TODO_retry_logging.md,file,TODO_retry_logging.md,,2026-07-25T23:43:44.704422Z,2026-07-25T23:43:44.704422Z,{}
+commit:file_metadata_and_embeddings:0a5943c74a,commit,Refactor find_most_similar_v2.py to use two-tier FAISS manager,,2026-07-25T23:43:44.705007Z,2026-07-25T23:43:44.705007Z,{}
+commit:file_metadata_and_embeddings:da15483a22,commit,Add two-tier FAISS index manager and document unpackers,,2026-07-25T23:43:44.706056Z,2026-07-25T23:43:44.706056Z,{}
+file:build_faiss_index.py,file,build_faiss_index.py,,2026-07-25T23:43:44.706614Z,2026-07-25T23:43:44.706614Z,{}
+file:enhanced_ollama_tools.py.historical,file,enhanced_ollama_tools.py.historical,,2026-07-25T23:43:44.707172Z,2026-07-25T23:43:44.707172Z,{}
+file:enhanced_ollama_tools_extended.py.historical,file,enhanced_ollama_tools_extended.py.historical,,2026-07-25T23:43:44.707731Z,2026-07-25T23:43:44.707731Z,{}
+file:faiss_index_manager.py,file,faiss_index_manager.py,,2026-07-25T23:43:44.708298Z,2026-07-25T23:43:44.708298Z,{}
+file:file_agent_simple.py.historical,file,file_agent_simple.py.historical,,2026-07-25T23:43:44.708867Z,2026-07-25T23:43:44.708867Z,{}
+file:docx_unpacker.py,file,file_unpackers/docx_unpacker.py,,2026-07-25T23:43:44.709443Z,2026-07-25T23:43:44.709443Z,{}
+file:pdf_unpacker.py,file,file_unpackers/pdf_unpacker.py,,2026-07-25T23:43:44.710018Z,2026-07-25T23:43:44.710018Z,{}
+file:test_faiss_index_manager.py,file,test_faiss_index_manager.py,,2026-07-25T23:43:44.710591Z,2026-07-25T23:43:44.710591Z,{}
+commit:file_metadata_and_embeddings:aa54634330,commit,Integrate autograph knowledge graph into MCP server,,2026-07-25T23:43:44.711167Z,2026-07-25T23:43:44.711167Z,{}
+file:file_tools_mcp_server.py.historical,file,file_tools_mcp_server.py.historical,,2026-07-25T23:43:44.712262Z,2026-07-25T23:43:44.712262Z,{}
+commit:file_metadata_and_embeddings:372092268b,commit,Add MCP server for file metadata tool integration,,2026-07-25T23:43:44.715991Z,2026-07-25T23:43:44.715991Z,{}
+commit:file_metadata_and_embeddings:c109de5a7d,commit,Add comprehensive tests for file discovery filtering and incremental processing,,2026-07-25T23:43:44.717131Z,2026-07-25T23:43:44.717131Z,{}
+file:test_file_discovery.py,file,test_file_discovery.py,,2026-07-25T23:43:44.717725Z,2026-07-25T23:43:44.717725Z,{}
+commit:file_metadata_and_embeddings:7338884bfb,commit,Skip unchanged files during discovery phase using last scan timestamp,,2026-07-25T23:43:44.718323Z,2026-07-25T23:43:44.718323Z,{}
+commit:file_metadata_and_embeddings:9c318aaabd,commit,Add directory denylist patterns and allowlist override for file discovery,,2026-07-25T23:43:44.719465Z,2026-07-25T23:43:44.719465Z,{}
+commit:file_metadata_and_embeddings:9d65c19bfc,commit,Refactor file discovery to allowlist approach and add embedding controls,,2026-07-25T23:43:44.720617Z,2026-07-25T23:43:44.720617Z,{}
+commit:file_metadata_and_embeddings:51fd665e8c,commit,Add hash-based deduplication to skip re-processing identical content,,2026-07-25T23:43:44.721768Z,2026-07-25T23:43:44.721768Z,{}
+commit:file_metadata_and_embeddings:dd6d8f8ba6,commit,Add enhancement request: SQLAlchemy Core + Alembic migration,,2026-07-25T23:43:44.722924Z,2026-07-25T23:43:44.722924Z,{}
+file:ENHANCEMENT_REQUEST_sqlalchemy_migration.md,file,ENHANCEMENT_REQUEST_sqlalchemy_migration.md,,2026-07-25T23:43:44.723539Z,2026-07-25T23:43:44.723539Z,{}
+commit:file_metadata_and_embeddings:344fbeed07,commit,feat: Add web interface and native macOS support,,2026-07-25T23:43:44.724161Z,2026-07-25T23:43:44.724161Z,{}
+file:.kiroignore,file,.kiroignore,,2026-07-25T23:43:44.725340Z,2026-07-25T23:43:44.725340Z,{}
+file:README.md,file,README.md,,2026-07-25T23:43:44.725962Z,2026-07-25T23:43:44.725962Z,{}
+file:WEB_INTERFACE_README.md,file,WEB_INTERFACE_README.md,,2026-07-25T23:43:44.726587Z,2026-07-25T23:43:44.726587Z,{}
+file:WEB_INTERFACE_SUMMARY.md,file,WEB_INTERFACE_SUMMARY.md,,2026-07-25T23:43:44.727213Z,2026-07-25T23:43:44.727213Z,{}
+file:ARCHITECTURE.md,file,osx_support/ARCHITECTURE.md,,2026-07-25T23:43:44.727847Z,2026-07-25T23:43:44.727847Z,{}
+file:BUILD.md,file,osx_support/BUILD.md,,2026-07-25T23:43:44.728479Z,2026-07-25T23:43:44.728479Z,{}
+file:contents.xcworkspacedata,file,osx_support/FileSearchWorkspace.xcworkspace/contents.xcworkspacedata,,2026-07-25T23:43:44.729109Z,2026-07-25T23:43:44.729109Z,{}
+file:Makefile,file,osx_support/Makefile,,2026-07-25T23:43:44.729775Z,2026-07-25T23:43:44.729775Z,{}
+file:REQUIREMENTS.md,file,osx_support/REQUIREMENTS.md,,2026-07-25T23:43:44.731007Z,2026-07-25T23:43:44.731007Z,{}
+file:STATUS.md,file,osx_support/STATUS.md,,2026-07-25T23:43:44.731674Z,2026-07-25T23:43:44.731674Z,{}
+file:AGENTIC_INTENTS.md,file,osx_support/_archive_kiro/AGENTIC_INTENTS.md,,2026-07-25T23:43:44.732334Z,2026-07-25T23:43:44.732334Z,{}
+file:BUILD_FROM_SOURCE.md,file,osx_support/_archive_kiro/BUILD_FROM_SOURCE.md,,2026-07-25T23:43:44.732998Z,2026-07-25T23:43:44.732998Z,{}
+file:CURRENT_STATUS.md,file,osx_support/_archive_kiro/CURRENT_STATUS.md,,2026-07-25T23:43:44.733662Z,2026-07-25T23:43:44.733662Z,{}
+file:DEBUGGING_GUIDE.md,file,osx_support/_archive_kiro/DEBUGGING_GUIDE.md,,2026-07-25T23:43:44.734326Z,2026-07-25T23:43:44.734326Z,{}
+file:DISTRIBUTION.md,file,osx_support/_archive_kiro/DISTRIBUTION.md,,2026-07-25T23:43:44.734996Z,2026-07-25T23:43:44.734996Z,{}
+file:GETTING_STARTED.md,file,osx_support/_archive_kiro/GETTING_STARTED.md,,2026-07-25T23:43:44.735669Z,2026-07-25T23:43:44.735669Z,{}
+file:IMPLEMENTATION_PLAN.md,file,osx_support/_archive_kiro/IMPLEMENTATION_PLAN.md,,2026-07-25T23:43:44.736343Z,2026-07-25T23:43:44.736343Z,{}
+file:KIRO_SESSION_REVIEW.md,file,osx_support/_archive_kiro/KIRO_SESSION_REVIEW.md,,2026-07-25T23:43:44.737021Z,2026-07-25T23:43:44.737021Z,{}
+file:KNOWLEDGE_GRAPH.md,file,osx_support/_archive_kiro/KNOWLEDGE_GRAPH.md,,2026-07-25T23:43:44.737708Z,2026-07-25T23:43:44.737708Z,{}
+file:MACOS_FIRST_CLASS_DESIGN.md,file,osx_support/_archive_kiro/MACOS_FIRST_CLASS_DESIGN.md,,2026-07-25T23:43:44.738389Z,2026-07-25T23:43:44.738389Z,{}
+file:MEMORY_MANAGEMENT.md,file,osx_support/_archive_kiro/MEMORY_MANAGEMENT.md,,2026-07-25T23:43:44.739074Z,2026-07-25T23:43:44.739074Z,{}
+file:METAL_ACCELERATION.md,file,osx_support/_archive_kiro/METAL_ACCELERATION.md,,2026-07-25T23:43:44.739767Z,2026-07-25T23:43:44.739767Z,{}
+file:NO_XCODE_NEEDED.md,file,osx_support/_archive_kiro/NO_XCODE_NEEDED.md,,2026-07-25T23:43:44.740460Z,2026-07-25T23:43:44.740460Z,{}
+file:PII_PROTECTION.md,file,osx_support/_archive_kiro/PII_PROTECTION.md,,2026-07-25T23:43:44.741156Z,2026-07-25T23:43:44.741156Z,{}
+file:PRODUCTION_DESIGN.md,file,osx_support/_archive_kiro/PRODUCTION_DESIGN.md,,2026-07-25T23:43:44.741854Z,2026-07-25T23:43:44.741854Z,{}
+file:PROJECT_SUMMARY.md,file,osx_support/_archive_kiro/PROJECT_SUMMARY.md,,2026-07-25T23:43:44.742554Z,2026-07-25T23:43:44.742554Z,{}
+file:SEMANTIC_API.md,file,osx_support/_archive_kiro/SEMANTIC_API.md,,2026-07-25T23:43:44.744552Z,2026-07-25T23:43:44.744552Z,{}
+file:SESSION_REQUIREMENTS.md,file,osx_support/_archive_kiro/SESSION_REQUIREMENTS.md,,2026-07-25T23:43:44.745264Z,2026-07-25T23:43:44.745264Z,{}
+file:SESSION_SUMMARY.md,file,osx_support/_archive_kiro/SESSION_SUMMARY.md,,2026-07-25T23:43:44.745977Z,2026-07-25T23:43:44.745977Z,{}
+file:SPOTLIGHT_ENHANCEMENT.md,file,osx_support/_archive_kiro/SPOTLIGHT_ENHANCEMENT.md,,2026-07-25T23:43:44.746688Z,2026-07-25T23:43:44.746688Z,{}
+file:SPOTLIGHT_REPLACEMENT.md,file,osx_support/_archive_kiro/SPOTLIGHT_REPLACEMENT.md,,2026-07-25T23:43:44.747406Z,2026-07-25T23:43:44.747406Z,{}
+file:STORAGE_ARCHITECTURE.md,file,osx_support/_archive_kiro/STORAGE_ARCHITECTURE.md,,2026-07-25T23:43:44.748157Z,2026-07-25T23:43:44.748157Z,{}
+file:V1_REQUIREMENTS.md,file,osx_support/_archive_kiro/V1_REQUIREMENTS.md,,2026-07-25T23:43:44.748886Z,2026-07-25T23:43:44.748886Z,{}
+file:V1_SHIPPING_PLAN.md,file,osx_support/_archive_kiro/V1_SHIPPING_PLAN.md,,2026-07-25T23:43:44.749621Z,2026-07-25T23:43:44.749621Z,{}
+file:Package.swift,file,osx_support/background_indexer/Package.swift,,2026-07-25T23:43:44.750359Z,2026-07-25T23:43:44.750359Z,{}
+file:FileIndexer.swift,file,osx_support/background_indexer/Sources/FileIndexer.swift,,2026-07-25T23:43:44.751097Z,2026-07-25T23:43:44.751097Z,{}
+file:com.fileindexer.plist,file,osx_support/background_indexer/com.fileindexer.plist,,2026-07-25T23:43:44.751838Z,2026-07-25T23:43:44.751838Z,{}
+file:install.sh,file,osx_support/background_indexer/install.sh,,2026-07-25T23:43:44.752595Z,2026-07-25T23:43:44.752595Z,{}
+file:uninstall.sh,file,osx_support/background_indexer/uninstall.sh,,2026-07-25T23:43:44.753338Z,2026-07-25T23:43:44.753338Z,{}
+file:build_all.sh,file,osx_support/build_all.sh,,2026-07-25T23:43:44.754084Z,2026-07-25T23:43:44.754084Z,{}
+file:build_dependencies.sh,file,osx_support/build_dependencies.sh,,2026-07-25T23:43:44.754850Z,2026-07-25T23:43:44.754850Z,{}
+file:claude.md,file,osx_support/claude.md,,2026-07-25T23:43:44.755611Z,2026-07-25T23:43:44.755611Z,{}
+file:project.pbxproj,file,osx_support/sqlite_faiss_extension/SQLiteFAISS.xcodeproj/project.pbxproj,,2026-07-25T23:43:44.757068Z,2026-07-25T23:43:44.757068Z,{}
+file:faiss_extension.cpp,file,osx_support/sqlite_faiss_extension/Sources/faiss_extension.cpp,,2026-07-25T23:43:44.757841Z,2026-07-25T23:43:44.757841Z,{}
+file:onnx_encoder.cpp,file,osx_support/sqlite_faiss_extension/Sources/onnx_encoder.cpp,,2026-07-25T23:43:44.758611Z,2026-07-25T23:43:44.758611Z,{}
+file:onnx_encoder.h,file,osx_support/sqlite_faiss_extension/Sources/onnx_encoder.h,,2026-07-25T23:43:44.759377Z,2026-07-25T23:43:44.759377Z,{}
+file:test_extension.sh,file,osx_support/sqlite_faiss_extension/test_extension.sh,,2026-07-25T23:43:44.760148Z,2026-07-25T23:43:44.760148Z,{}
+file:requirements.txt,file,requirements.txt,,2026-07-25T23:43:44.761026Z,2026-07-25T23:43:44.761026Z,{}
+file:run_web_interface.sh,file,run_web_interface.sh,,2026-07-25T23:43:44.761863Z,2026-07-25T23:43:44.761863Z,{}
+file:home.html,file,templates/home.html,,2026-07-25T23:43:44.762664Z,2026-07-25T23:43:44.762664Z,{}
+file:manage.html,file,templates/manage.html,,2026-07-25T23:43:44.763465Z,2026-07-25T23:43:44.763465Z,{}
+file:process.html,file,templates/process.html,,2026-07-25T23:43:44.764253Z,2026-07-25T23:43:44.764253Z,{}
+file:search.html,file,templates/search.html,,2026-07-25T23:43:44.765065Z,2026-07-25T23:43:44.765065Z,{}
+file:web_interface.py,file,web_interface.py,,2026-07-25T23:43:44.765864Z,2026-07-25T23:43:44.765864Z,{}
+commit:file_metadata_and_embeddings:03c3a68aa7,commit,"Document paradigm shift: Learning MCP, not building RAG",,2026-07-25T23:43:44.766660Z,2026-07-25T23:43:44.766660Z,{}
+file:claude_breadcrumbs.md,file,claude_breadcrumbs.md,,2026-07-25T23:43:44.767473Z,2026-07-25T23:43:44.767473Z,{}
+commit:file_metadata_and_embeddings:0a2ba1405b,commit,Add local LLM integration design documentation,,2026-07-25T23:43:44.768301Z,2026-07-25T23:43:44.768301Z,{}
+file:ARCHITECTURE_DECISION.md,file,local_llm/ARCHITECTURE_DECISION.md,,2026-07-25T23:43:44.769096Z,2026-07-25T23:43:44.769096Z,{}
+file:IMPLEMENTATION_ROADMAP.md,file,local_llm/IMPLEMENTATION_ROADMAP.md,,2026-07-25T23:43:44.769890Z,2026-07-25T23:43:44.769890Z,{}
+commit:file_metadata_and_embeddings:5177cd38fe,commit,Initial commit: V2 AI-optimized file metadata and embeddings system,,2026-07-25T23:43:44.771407Z,2026-07-25T23:43:44.771407Z,{}
+file:LICENSE.txt,file,LICENSE.txt,,2026-07-25T23:43:44.773668Z,2026-07-25T23:43:44.773668Z,{}
+file:chunk_db_integration.py,file,chunk_db_integration.py,,2026-07-25T23:43:44.775204Z,2026-07-25T23:43:44.775204Z,{}
+file:chunking_refactor.py,file,chunking_refactor.py,,2026-07-25T23:43:44.776008Z,2026-07-25T23:43:44.776008Z,{}
+file:requirements_mcp.txt,file,requirements_mcp.txt,,2026-07-25T23:43:44.779018Z,2026-07-25T23:43:44.779018Z,{}
+file:schema_refactor.sql,file,schema_refactor.sql,,2026-07-25T23:43:44.779838Z,2026-07-25T23:43:44.779838Z,{}
+file:test_chunking_refactor.py,file,test_chunking_refactor.py,,2026-07-25T23:43:44.780660Z,2026-07-25T23:43:44.780660Z,{}
+file:TOOLS_REFACTOR_SUMMARY.md,file,tools_v2/TOOLS_REFACTOR_SUMMARY.md,,2026-07-25T23:43:44.782217Z,2026-07-25T23:43:44.782217Z,{}
+session:file_metadata_and_embeddings:feedback_no_mcp_for_grounding,session,Don't add MCP tools for autogrounding/prompt-ground — use hooks and scripts instead,,2026-07-25T23:44:22.597729Z,2026-07-25T23:44:22.597729Z,{}
+session:file_metadata_and_embeddings:feedback_keep_local_cleaning,session,User wants to keep gemma3/aifilter cleaning prompts locally — do not replace with lighter alternatives,,2026-07-25T23:44:31.695371Z,2026-07-25T23:44:31.695371Z,{}
+session:file_metadata_and_embeddings:feedback_uv_python,session,"Always use uv run for pytest, pyright, and other tools. Never pip3, pipx, or bare python3.",,2026-07-25T23:44:31.698228Z,2026-07-25T23:44:31.698228Z,{}
+session:file_metadata_and_embeddings:project_db_schema,session,Both SQLite databases now have versioned readme tables and -- comments on all CREATE TABLE statements,,2026-07-25T23:44:31.699474Z,2026-07-25T23:44:31.699474Z,{}
+session:file_metadata_and_embeddings:project_grounding_pipeline,session,Current state of the prompt-ground / session-start-ground pipeline as of 2026-04-27,,2026-07-25T23:44:31.700578Z,2026-07-25T23:44:31.700578Z,{}
+session:file_metadata_and_embeddings:project_index_pipeline,session,Current state of the file_metadata_and_embeddings index pipeline as of 2026-04-12,,2026-07-25T23:44:31.701677Z,2026-07-25T23:44:31.701677Z,{}
+session:file_metadata_and_embeddings:rescan-refactor,session,rescan-refactor,,2026-07-25T23:44:41.134513Z,2026-07-25T23:44:41.134513Z,{}
+repo:writing-surface,repo,/Users/mark/Documents/src/writing-surface,,2026-07-25T23:45:03.633705Z,2026-07-25T23:45:03.633705Z,{}
+commit:writing-surface:b609d84312,commit,Add: coherence check and Scrivener bridge architecture to backlog,,2026-07-25T23:46:30.789158Z,2026-07-25T23:46:30.789158Z,{}
+file:product_todo.md,file,work_tracking/product_todo.md,,2026-07-25T23:46:30.791974Z,2026-07-25T23:46:30.791974Z,{}
+commit:writing-surface:b8a9e9be84,commit,document Model A single-file writing surface decision,,2026-07-25T23:46:30.793418Z,2026-07-25T23:46:30.793418Z,{}
+file:model_a_design_decision.md,file,work_tracking/model_a_design_decision.md,,2026-07-25T23:46:30.796396Z,2026-07-25T23:46:30.796396Z,{}
+commit:writing-surface:0a2cf1c3c8,commit,"feat: book.toml-aware chapter listing — toc, appendices, index visible in web API",,2026-07-25T23:46:30.797786Z,2026-07-25T23:46:30.797786Z,{}
+file:chapters.py,file,web/lib/chapters.py,,2026-07-25T23:46:30.799572Z,2026-07-25T23:46:30.799572Z,{}
+commit:writing-surface:4c09c23edd,commit,feat: book.toml-aware assembly — toc → chapters → appendices → index order,,2026-07-25T23:46:30.801037Z,2026-07-25T23:46:30.801037Z,{}
+file:assemble.py,file,assembly/assemble.py,,2026-07-25T23:46:30.802355Z,2026-07-25T23:46:30.802355Z,{}
+commit:writing-surface:cbb850f339,commit,fix: add nltk to dependencies for thesaurus/define wordtools,,2026-07-25T23:46:30.803584Z,2026-07-25T23:46:30.803584Z,{}
+file:pyproject.toml,file,pyproject.toml,,2026-07-25T23:46:30.804789Z,2026-07-25T23:46:30.804789Z,{}
+commit:writing-surface:887a2f9fd0,commit,fix: scope dist exclude to top-level only so web/dist syncs to projects,,2026-07-25T23:46:30.805997Z,2026-07-25T23:46:30.805997Z,{}
+commit:writing-surface:9f0724cdac,commit,"Switch review models to local gpt-oss (20b T2/T3, 120b T4)",,2026-07-25T23:46:30.808251Z,2026-07-25T23:46:30.808251Z,{}
+file:chapter_review.py,file,assembly/chapter_review.py,,2026-07-25T23:46:30.809283Z,2026-07-25T23:46:30.809283Z,{}
+commit:writing-surface:30334de0b7,commit,"Add install-behaviors target and review behavior files (review-voice, review-continuity, review-story-promise)",,2026-07-25T23:46:30.810310Z,2026-07-25T23:46:30.810310Z,{}
+file:review-continuity.txt,file,behaviors/writing/review-continuity.txt,,2026-07-25T23:46:30.812293Z,2026-07-25T23:46:30.812293Z,{}
+file:review-story-promise.txt,file,behaviors/writing/review-story-promise.txt,,2026-07-25T23:46:30.813325Z,2026-07-25T23:46:30.813325Z,{}
+file:review-voice.txt,file,behaviors/writing/review-voice.txt,,2026-07-25T23:46:30.814294Z,2026-07-25T23:46:30.814294Z,{}
+commit:writing-surface:8932a18c36,commit,Add make new and make update-project targets for project instantiation,,2026-07-25T23:46:30.815195Z,2026-07-25T23:46:30.815195Z,{}
+commit:writing-surface:74551aebd3,commit,Backlog: cockpit vision — 13 features from 2026-04-14 session,,2026-07-25T23:46:30.816957Z,2026-07-25T23:46:30.816957Z,{}
+commit:writing-surface:cc75a6a241,commit,Bookend.app: PyInstaller bundle — make bundle builds native macOS app,,2026-07-25T23:46:30.818756Z,2026-07-25T23:46:30.818756Z,{}
+file:bookend.py,file,bookend.py,,2026-07-25T23:46:30.821369Z,2026-07-25T23:46:30.821369Z,{}
+file:bookend.spec,file,bookend.spec,,2026-07-25T23:46:30.822287Z,2026-07-25T23:46:30.822287Z,{}
+commit:writing-surface:e5bc9a75f8,commit,bookend.py: native desktop app launcher via pywebview,,2026-07-25T23:46:30.823212Z,2026-07-25T23:46:30.823212Z,{}
+commit:writing-surface:85868b2b24,commit,make excel: generate multi-tab workbook with Story Bible and Images tabs,,2026-07-25T23:46:30.825861Z,2026-07-25T23:46:30.825861Z,{}
+file:make_workbook.py,file,assembly/make_workbook.py,,2026-07-25T23:46:30.827651Z,2026-07-25T23:46:30.827651Z,{}
+commit:writing-surface:985aed9732,commit,"Image library: placement picker, provenance fields, epub CSS, publishing tips",,2026-07-25T23:46:30.828576Z,2026-07-25T23:46:30.828576Z,{}
+file:assemble_epub.py,file,assembly/assemble_epub.py,,2026-07-25T23:46:30.829501Z,2026-07-25T23:46:30.829501Z,{}
+file:epub.css,file,assembly/epub.css,,2026-07-25T23:46:30.830427Z,2026-07-25T23:46:30.830427Z,{}
+file:index.html,file,web/index.html,,2026-07-25T23:46:30.831362Z,2026-07-25T23:46:30.831362Z,{}
+file:db.py,file,web/lib/db.py,,2026-07-25T23:46:30.832299Z,2026-07-25T23:46:30.832299Z,{}
+file:server.py,file,web/server.py,,2026-07-25T23:46:30.833236Z,2026-07-25T23:46:30.833236Z,{}
+file:api.js,file,web/src/api.js,,2026-07-25T23:46:30.834175Z,2026-07-25T23:46:30.834175Z,{}
+file:api.ts,file,web/src/api.ts,,2026-07-25T23:46:30.835120Z,2026-07-25T23:46:30.835120Z,{}
+file:main.js,file,web/src/main.js,,2026-07-25T23:46:30.836063Z,2026-07-25T23:46:30.836063Z,{}
+file:main.ts,file,web/src/main.ts,,2026-07-25T23:46:30.837020Z,2026-07-25T23:46:30.837020Z,{}
+file:app.css,file,web/src/style/app.css,,2026-07-25T23:46:30.837987Z,2026-07-25T23:46:30.837987Z,{}
+file:types.ts,file,web/src/types.ts,,2026-07-25T23:46:30.838948Z,2026-07-25T23:46:30.838948Z,{}
+file:tips_for_publishing.md,file,work_tracking/tips_for_publishing.md,,2026-07-25T23:46:30.839919Z,2026-07-25T23:46:30.839919Z,{}
+commit:writing-surface:8f237b1572,commit,"Plan grid: visible grid lines, clean header area",,2026-07-25T23:46:30.840877Z,2026-07-25T23:46:30.840877Z,{}
+commit:writing-surface:df92ed2e19,commit,"Fix Plan tab: migrate chapter_progress schema, fix word count delta",,2026-07-25T23:46:30.842805Z,2026-07-25T23:46:30.842805Z,{}
+commit:writing-surface:608107d626,commit,Phase 9: Plan tab — mutable progress grid + word count metrics,,2026-07-25T23:46:30.845581Z,2026-07-25T23:46:30.845581Z,{}
+commit:writing-surface:f269353192,commit,Phase 10: epub export pipeline,,2026-07-25T23:46:30.852041Z,2026-07-25T23:46:30.852041Z,{}
+commit:writing-surface:cbb34b1024,commit,Images tab: collapsible hint bar with copy-to-clipboard AI prompt,,2026-07-25T23:46:30.859433Z,2026-07-25T23:46:30.859433Z,{}
+commit:writing-surface:c7df9acca6,commit,Phase 7 complete: Image library UI with accessible insert,,2026-07-25T23:46:30.864107Z,2026-07-25T23:46:30.864107Z,{}
+file:editor.js,file,web/src/editor.js,,2026-07-25T23:46:30.869722Z,2026-07-25T23:46:30.869722Z,{}
+file:editor.ts,file,web/src/editor.ts,,2026-07-25T23:46:30.870712Z,2026-07-25T23:46:30.870712Z,{}
+commit:writing-surface:0d729553cf,commit,"QA fixes: git hash, save status, post-it @syntax, prose-body extraction, reader typography, edit button, chapter insert feedback",,2026-07-25T23:46:30.875439Z,2026-07-25T23:46:30.875439Z,{}
+file:bookend_retest_round2.md,file,tests/bookend_retest_round2.md,,2026-07-25T23:46:30.876429Z,2026-07-25T23:46:30.876429Z,{}
+file:bookend_ui_checklist.md,file,tests/bookend_ui_checklist.md,,2026-07-25T23:46:30.877410Z,2026-07-25T23:46:30.877410Z,{}
+commit:writing-surface:29c5714c2a,commit,Remove node_modules and dist from tracking; add to .gitignore,,2026-07-25T23:46:30.884859Z,2026-07-25T23:46:30.884859Z,{}
+file:index-CBrUZAe6.js,file,web/dist/assets/index-CBrUZAe6.js,,2026-07-25T23:46:30.886818Z,2026-07-25T23:46:30.886818Z,{}
+file:index-zNYQ6LiP.css,file,web/dist/assets/index-zNYQ6LiP.css,,2026-07-25T23:46:30.887834Z,2026-07-25T23:46:30.887834Z,{}
+file:esbuild,file,web/node_modules/.bin/esbuild,,2026-07-25T23:46:30.889790Z,2026-07-25T23:46:30.889790Z,{}
+file:marked,file,web/node_modules/.bin/marked,,2026-07-25T23:46:30.890807Z,2026-07-25T23:46:30.890807Z,{}
+file:nanoid,file,web/node_modules/.bin/nanoid,,2026-07-25T23:46:30.891819Z,2026-07-25T23:46:30.891819Z,{}
+file:rollup,file,web/node_modules/.bin/rollup,,2026-07-25T23:46:30.892837Z,2026-07-25T23:46:30.892837Z,{}
+file:tsc,file,web/node_modules/.bin/tsc,,2026-07-25T23:46:30.893848Z,2026-07-25T23:46:30.893848Z,{}
+file:tsserver,file,web/node_modules/.bin/tsserver,,2026-07-25T23:46:30.894860Z,2026-07-25T23:46:30.894860Z,{}
+file:vite,file,web/node_modules/.bin/vite,,2026-07-25T23:46:30.895902Z,2026-07-25T23:46:30.895902Z,{}
+file:.package-lock.json,file,web/node_modules/.package-lock.json,,2026-07-25T23:46:30.896921Z,2026-07-25T23:46:30.896921Z,{}
+file:dispatch.yml,file,web/node_modules/@codemirror/autocomplete/.github/workflows/dispatch.yml,,2026-07-25T23:46:30.897957Z,2026-07-25T23:46:30.897957Z,{}
+file:CHANGELOG.md,file,web/node_modules/@codemirror/autocomplete/CHANGELOG.md,,2026-07-25T23:46:30.898994Z,2026-07-25T23:46:30.898994Z,{}
+file:LICENSE,file,web/node_modules/@codemirror/autocomplete/LICENSE,,2026-07-25T23:46:30.900037Z,2026-07-25T23:46:30.900037Z,{}
+file:index.cjs,file,web/node_modules/@codemirror/autocomplete/dist/index.cjs,,2026-07-25T23:46:30.902043Z,2026-07-25T23:46:30.902043Z,{}
+file:index.d.cts,file,web/node_modules/@codemirror/autocomplete/dist/index.d.cts,,2026-07-25T23:46:30.903083Z,2026-07-25T23:46:30.903083Z,{}
+file:index.d.ts,file,web/node_modules/@codemirror/autocomplete/dist/index.d.ts,,2026-07-25T23:46:30.904187Z,2026-07-25T23:46:30.904187Z,{}
+file:index.js,file,web/node_modules/@codemirror/autocomplete/dist/index.js,,2026-07-25T23:46:30.905249Z,2026-07-25T23:46:30.905249Z,{}
+file:package.json,file,web/node_modules/@codemirror/autocomplete/package.json,,2026-07-25T23:46:30.906306Z,2026-07-25T23:46:30.906306Z,{}
+file:rollup.config.js,file,web/node_modules/@lezer/css/rollup.config.js,,2026-07-25T23:46:31.005031Z,2026-07-25T23:46:31.005031Z,{}
+file:css.grammar,file,web/node_modules/@lezer/css/src/css.grammar,,2026-07-25T23:46:31.006086Z,2026-07-25T23:46:31.006086Z,{}
+file:highlight.js,file,web/node_modules/@lezer/css/src/highlight.js,,2026-07-25T23:46:31.007147Z,2026-07-25T23:46:31.007147Z,{}
+file:parser.js,file,web/node_modules/@lezer/css/src/parser.js,,2026-07-25T23:46:31.008220Z,2026-07-25T23:46:31.008220Z,{}
+file:parser.terms.js,file,web/node_modules/@lezer/css/src/parser.terms.js,,2026-07-25T23:46:31.009289Z,2026-07-25T23:46:31.009289Z,{}
+file:tokens.js,file,web/node_modules/@lezer/css/src/tokens.js,,2026-07-25T23:46:31.010372Z,2026-07-25T23:46:31.010372Z,{}
+file:declarations.txt,file,web/node_modules/@lezer/css/test/declarations.txt,,2026-07-25T23:46:31.011455Z,2026-07-25T23:46:31.011455Z,{}
+file:selector.txt,file,web/node_modules/@lezer/css/test/selector.txt,,2026-07-25T23:46:31.012517Z,2026-07-25T23:46:31.012517Z,{}
+file:statements.txt,file,web/node_modules/@lezer/css/test/statements.txt,,2026-07-25T23:46:31.013624Z,2026-07-25T23:46:31.013624Z,{}
+file:test-css.js,file,web/node_modules/@lezer/css/test/test-css.js,,2026-07-25T23:46:31.014714Z,2026-07-25T23:46:31.014714Z,{}
+file:.tern-port,file,web/node_modules/@lezer/html/src/.tern-port,,2026-07-25T23:46:31.032045Z,2026-07-25T23:46:31.032045Z,{}
+file:content.js,file,web/node_modules/@lezer/html/src/content.js,,2026-07-25T23:46:31.033348Z,2026-07-25T23:46:31.033348Z,{}
+file:html.grammar,file,web/node_modules/@lezer/html/src/html.grammar,,2026-07-25T23:46:31.036163Z,2026-07-25T23:46:31.036163Z,{}
+file:mixed.txt,file,web/node_modules/@lezer/html/test/mixed.txt,,2026-07-25T23:46:31.041354Z,2026-07-25T23:46:31.041354Z,{}
+file:tags.txt,file,web/node_modules/@lezer/html/test/tags.txt,,2026-07-25T23:46:31.042440Z,2026-07-25T23:46:31.042440Z,{}
+file:test-html.js,file,web/node_modules/@lezer/html/test/test-html.js,,2026-07-25T23:46:31.043581Z,2026-07-25T23:46:31.043581Z,{}
+file:test-incremental.js,file,web/node_modules/@lezer/html/test/test-incremental.js,,2026-07-25T23:46:31.044674Z,2026-07-25T23:46:31.044674Z,{}
+file:vue.txt,file,web/node_modules/@lezer/html/test/vue.txt,,2026-07-25T23:46:31.045764Z,2026-07-25T23:46:31.045764Z,{}
+file:javascript.grammar,file,web/node_modules/@lezer/javascript/src/javascript.grammar,,2026-07-25T23:46:31.058678Z,2026-07-25T23:46:31.058678Z,{}
+file:decorator.txt,file,web/node_modules/@lezer/javascript/test/decorator.txt,,2026-07-25T23:46:31.062877Z,2026-07-25T23:46:31.062877Z,{}
+file:expression.txt,file,web/node_modules/@lezer/javascript/test/expression.txt,,2026-07-25T23:46:31.063983Z,2026-07-25T23:46:31.063983Z,{}
+file:jsx.txt,file,web/node_modules/@lezer/javascript/test/jsx.txt,,2026-07-25T23:46:31.065099Z,2026-07-25T23:46:31.065099Z,{}
+file:semicolon.txt,file,web/node_modules/@lezer/javascript/test/semicolon.txt,,2026-07-25T23:46:31.066207Z,2026-07-25T23:46:31.066207Z,{}
+file:statement.txt,file,web/node_modules/@lezer/javascript/test/statement.txt,,2026-07-25T23:46:31.067321Z,2026-07-25T23:46:31.067321Z,{}
+file:test-javascript.js,file,web/node_modules/@lezer/javascript/test/test-javascript.js,,2026-07-25T23:46:31.068450Z,2026-07-25T23:46:31.068450Z,{}
+file:typescript.txt,file,web/node_modules/@lezer/javascript/test/typescript.txt,,2026-07-25T23:46:31.069578Z,2026-07-25T23:46:31.069578Z,{}
+file:constants.d.ts,file,web/node_modules/@lezer/lr/dist/constants.d.ts,,2026-07-25T23:46:31.072804Z,2026-07-25T23:46:31.072804Z,{}
+file:constants.js,file,web/node_modules/@lezer/lr/dist/constants.js,,2026-07-25T23:46:31.073925Z,2026-07-25T23:46:31.073925Z,{}
+file:build-readme.cjs,file,web/node_modules/@lezer/markdown/bin/build-readme.cjs,,2026-07-25T23:46:31.083504Z,2026-07-25T23:46:31.083504Z,{}
+file:build.js,file,web/node_modules/@lezer/markdown/build.js,,2026-07-25T23:46:31.084645Z,2026-07-25T23:46:31.084645Z,{}
+file:extension.ts,file,web/node_modules/@lezer/markdown/src/extension.ts,,2026-07-25T23:46:31.092130Z,2026-07-25T23:46:31.092130Z,{}
+file:index.ts,file,web/node_modules/@lezer/markdown/src/index.ts,,2026-07-25T23:46:31.093267Z,2026-07-25T23:46:31.093267Z,{}
+file:markdown.ts,file,web/node_modules/@lezer/markdown/src/markdown.ts,,2026-07-25T23:46:31.094404Z,2026-07-25T23:46:31.094404Z,{}
+file:nest.ts,file,web/node_modules/@lezer/markdown/src/nest.ts,,2026-07-25T23:46:31.095536Z,2026-07-25T23:46:31.095536Z,{}
+file:compare-tree.ts,file,web/node_modules/@lezer/markdown/test/compare-tree.ts,,2026-07-25T23:46:31.096675Z,2026-07-25T23:46:31.096675Z,{}
+file:spec.ts,file,web/node_modules/@lezer/markdown/test/spec.ts,,2026-07-25T23:46:31.097821Z,2026-07-25T23:46:31.097821Z,{}
+file:test-extension.ts,file,web/node_modules/@lezer/markdown/test/test-extension.ts,,2026-07-25T23:46:31.098970Z,2026-07-25T23:46:31.098970Z,{}
+file:test-incremental.ts,file,web/node_modules/@lezer/markdown/test/test-incremental.ts,,2026-07-25T23:46:31.100125Z,2026-07-25T23:46:31.100125Z,{}
+file:test-markdown.ts,file,web/node_modules/@lezer/markdown/test/test-markdown.ts,,2026-07-25T23:46:31.101282Z,2026-07-25T23:46:31.101282Z,{}
+file:test-nesting.ts,file,web/node_modules/@lezer/markdown/test/test-nesting.ts,,2026-07-25T23:46:31.102434Z,2026-07-25T23:46:31.102434Z,{}
+file:tsconfig.json,file,web/node_modules/@lezer/markdown/test/tsconfig.json,,2026-07-25T23:46:31.103587Z,2026-07-25T23:46:31.103587Z,{}
+file:test-cluster.js,file,web/node_modules/@marijn/find-cluster-break/test/test-cluster.js,,2026-07-25T23:46:31.114679Z,2026-07-25T23:46:31.114679Z,{}
+file:rollup.darwin-arm64.node,file,web/node_modules/@rollup/rollup-darwin-arm64/rollup.darwin-arm64.node,,2026-07-25T23:46:31.118042Z,2026-07-25T23:46:31.118042Z,{}
+file:flow.d.ts,file,web/node_modules/@types/estree/flow.d.ts,,2026-07-25T23:46:31.121405Z,2026-07-25T23:46:31.121405Z,{}
+file:LICENSE.md,file,web/node_modules/esbuild/LICENSE.md,,2026-07-25T23:46:31.133560Z,2026-07-25T23:46:31.133560Z,{}
+file:install.js,file,web/node_modules/esbuild/install.js,,2026-07-25T23:46:31.136998Z,2026-07-25T23:46:31.136998Z,{}
+file:main.d.ts,file,web/node_modules/esbuild/lib/main.d.ts,,2026-07-25T23:46:31.138167Z,2026-07-25T23:46:31.138167Z,{}
+file:marked.js,file,web/node_modules/marked/bin/marked.js,,2026-07-25T23:46:31.144869Z,2026-07-25T23:46:31.144869Z,{}
+file:marked.cjs,file,web/node_modules/marked/lib/marked.cjs,,2026-07-25T23:46:31.146033Z,2026-07-25T23:46:31.146033Z,{}
+file:marked.cjs.map,file,web/node_modules/marked/lib/marked.cjs.map,,2026-07-25T23:46:31.147195Z,2026-07-25T23:46:31.147195Z,{}
+file:marked.d.cts,file,web/node_modules/marked/lib/marked.d.cts,,2026-07-25T23:46:31.148357Z,2026-07-25T23:46:31.148357Z,{}
+file:marked.d.ts,file,web/node_modules/marked/lib/marked.d.ts,,2026-07-25T23:46:31.149529Z,2026-07-25T23:46:31.149529Z,{}
+file:marked.esm.js,file,web/node_modules/marked/lib/marked.esm.js,,2026-07-25T23:46:31.150697Z,2026-07-25T23:46:31.150697Z,{}
+file:marked.esm.js.map,file,web/node_modules/marked/lib/marked.esm.js.map,,2026-07-25T23:46:31.151863Z,2026-07-25T23:46:31.151863Z,{}
+file:marked.umd.js,file,web/node_modules/marked/lib/marked.umd.js,,2026-07-25T23:46:31.153038Z,2026-07-25T23:46:31.153038Z,{}
+file:marked.umd.js.map,file,web/node_modules/marked/lib/marked.umd.js.map,,2026-07-25T23:46:31.154215Z,2026-07-25T23:46:31.154215Z,{}
+file:marked.1,file,web/node_modules/marked/man/marked.1,,2026-07-25T23:46:31.155405Z,2026-07-25T23:46:31.155405Z,{}
+file:marked.1.md,file,web/node_modules/marked/man/marked.1.md,,2026-07-25T23:46:31.156586Z,2026-07-25T23:46:31.156586Z,{}
+file:marked.min.js,file,web/node_modules/marked/marked.min.js,,2026-07-25T23:46:31.157765Z,2026-07-25T23:46:31.157765Z,{}
+file:index.browser.cjs,file,web/node_modules/nanoid/async/index.browser.cjs,,2026-07-25T23:46:31.162339Z,2026-07-25T23:46:31.162339Z,{}
+file:index.browser.js,file,web/node_modules/nanoid/async/index.browser.js,,2026-07-25T23:46:31.163528Z,2026-07-25T23:46:31.163528Z,{}
+file:index.native.js,file,web/node_modules/nanoid/async/index.native.js,,2026-07-25T23:46:31.168138Z,2026-07-25T23:46:31.168138Z,{}
+file:nanoid.cjs,file,web/node_modules/nanoid/bin/nanoid.cjs,,2026-07-25T23:46:31.170485Z,2026-07-25T23:46:31.170485Z,{}
+file:nanoid.js,file,web/node_modules/nanoid/nanoid.js,,2026-07-25T23:46:31.178559Z,2026-07-25T23:46:31.178559Z,{}
+file:picocolors.browser.js,file,web/node_modules/picocolors/picocolors.browser.js,,2026-07-25T23:46:31.192432Z,2026-07-25T23:46:31.192432Z,{}
+file:picocolors.d.ts,file,web/node_modules/picocolors/picocolors.d.ts,,2026-07-25T23:46:31.193646Z,2026-07-25T23:46:31.193646Z,{}
+file:picocolors.js,file,web/node_modules/picocolors/picocolors.js,,2026-07-25T23:46:31.194867Z,2026-07-25T23:46:31.194867Z,{}
+file:types.d.ts,file,web/node_modules/picocolors/types.d.ts,,2026-07-25T23:46:31.196082Z,2026-07-25T23:46:31.196082Z,{}
+file:at-rule.d.ts,file,web/node_modules/postcss/lib/at-rule.d.ts,,2026-07-25T23:46:31.199624Z,2026-07-25T23:46:31.199624Z,{}
+file:at-rule.js,file,web/node_modules/postcss/lib/at-rule.js,,2026-07-25T23:46:31.200850Z,2026-07-25T23:46:31.200850Z,{}
+file:comment.d.ts,file,web/node_modules/postcss/lib/comment.d.ts,,2026-07-25T23:46:31.202082Z,2026-07-25T23:46:31.202082Z,{}
+file:comment.js,file,web/node_modules/postcss/lib/comment.js,,2026-07-25T23:46:31.203310Z,2026-07-25T23:46:31.203310Z,{}
+file:container.d.ts,file,web/node_modules/postcss/lib/container.d.ts,,2026-07-25T23:46:31.204540Z,2026-07-25T23:46:31.204540Z,{}
+file:container.js,file,web/node_modules/postcss/lib/container.js,,2026-07-25T23:46:31.205767Z,2026-07-25T23:46:31.205767Z,{}
+file:css-syntax-error.d.ts,file,web/node_modules/postcss/lib/css-syntax-error.d.ts,,2026-07-25T23:46:31.207003Z,2026-07-25T23:46:31.207003Z,{}
+file:css-syntax-error.js,file,web/node_modules/postcss/lib/css-syntax-error.js,,2026-07-25T23:46:31.208243Z,2026-07-25T23:46:31.208243Z,{}
+file:declaration.d.ts,file,web/node_modules/postcss/lib/declaration.d.ts,,2026-07-25T23:46:31.209477Z,2026-07-25T23:46:31.209477Z,{}
+file:declaration.js,file,web/node_modules/postcss/lib/declaration.js,,2026-07-25T23:46:31.210743Z,2026-07-25T23:46:31.210743Z,{}
+file:document.d.ts,file,web/node_modules/postcss/lib/document.d.ts,,2026-07-25T23:46:31.211983Z,2026-07-25T23:46:31.211983Z,{}
+file:document.js,file,web/node_modules/postcss/lib/document.js,,2026-07-25T23:46:31.213230Z,2026-07-25T23:46:31.213230Z,{}
+file:fromJSON.d.ts,file,web/node_modules/postcss/lib/fromJSON.d.ts,,2026-07-25T23:46:31.214490Z,2026-07-25T23:46:31.214490Z,{}
+file:fromJSON.js,file,web/node_modules/postcss/lib/fromJSON.js,,2026-07-25T23:46:31.215744Z,2026-07-25T23:46:31.215744Z,{}
+file:input.d.ts,file,web/node_modules/postcss/lib/input.d.ts,,2026-07-25T23:46:31.217003Z,2026-07-25T23:46:31.217003Z,{}
+file:input.js,file,web/node_modules/postcss/lib/input.js,,2026-07-25T23:46:31.218265Z,2026-07-25T23:46:31.218265Z,{}
+file:lazy-result.d.ts,file,web/node_modules/postcss/lib/lazy-result.d.ts,,2026-07-25T23:46:31.219526Z,2026-07-25T23:46:31.219526Z,{}
+file:lazy-result.js,file,web/node_modules/postcss/lib/lazy-result.js,,2026-07-25T23:46:31.220791Z,2026-07-25T23:46:31.220791Z,{}
+file:list.d.ts,file,web/node_modules/postcss/lib/list.d.ts,,2026-07-25T23:46:31.222057Z,2026-07-25T23:46:31.222057Z,{}
+file:list.js,file,web/node_modules/postcss/lib/list.js,,2026-07-25T23:46:31.223328Z,2026-07-25T23:46:31.223328Z,{}
+file:map-generator.js,file,web/node_modules/postcss/lib/map-generator.js,,2026-07-25T23:46:31.224597Z,2026-07-25T23:46:31.224597Z,{}
+file:no-work-result.d.ts,file,web/node_modules/postcss/lib/no-work-result.d.ts,,2026-07-25T23:46:31.225874Z,2026-07-25T23:46:31.225874Z,{}
+file:no-work-result.js,file,web/node_modules/postcss/lib/no-work-result.js,,2026-07-25T23:46:31.227164Z,2026-07-25T23:46:31.227164Z,{}
+file:node.d.ts,file,web/node_modules/postcss/lib/node.d.ts,,2026-07-25T23:46:31.228456Z,2026-07-25T23:46:31.228456Z,{}
+file:node.js,file,web/node_modules/postcss/lib/node.js,,2026-07-25T23:46:31.229737Z,2026-07-25T23:46:31.229737Z,{}
+file:parse.d.ts,file,web/node_modules/postcss/lib/parse.d.ts,,2026-07-25T23:46:31.231024Z,2026-07-25T23:46:31.231024Z,{}
+file:parse.js,file,web/node_modules/postcss/lib/parse.js,,2026-07-25T23:46:31.232315Z,2026-07-25T23:46:31.232315Z,{}
+file:postcss.d.mts,file,web/node_modules/postcss/lib/postcss.d.mts,,2026-07-25T23:46:31.234855Z,2026-07-25T23:46:31.234855Z,{}
+file:postcss.d.ts,file,web/node_modules/postcss/lib/postcss.d.ts,,2026-07-25T23:46:31.236148Z,2026-07-25T23:46:31.236148Z,{}
+file:postcss.js,file,web/node_modules/postcss/lib/postcss.js,,2026-07-25T23:46:31.237446Z,2026-07-25T23:46:31.237446Z,{}
+file:postcss.mjs,file,web/node_modules/postcss/lib/postcss.mjs,,2026-07-25T23:46:31.238743Z,2026-07-25T23:46:31.238743Z,{}
+file:previous-map.d.ts,file,web/node_modules/postcss/lib/previous-map.d.ts,,2026-07-25T23:46:31.240066Z,2026-07-25T23:46:31.240066Z,{}
+file:previous-map.js,file,web/node_modules/postcss/lib/previous-map.js,,2026-07-25T23:46:31.241369Z,2026-07-25T23:46:31.241369Z,{}
+file:processor.d.ts,file,web/node_modules/postcss/lib/processor.d.ts,,2026-07-25T23:46:31.242673Z,2026-07-25T23:46:31.242673Z,{}
+file:processor.js,file,web/node_modules/postcss/lib/processor.js,,2026-07-25T23:46:31.243985Z,2026-07-25T23:46:31.243985Z,{}
+file:result.d.ts,file,web/node_modules/postcss/lib/result.d.ts,,2026-07-25T23:46:31.245319Z,2026-07-25T23:46:31.245319Z,{}
+file:result.js,file,web/node_modules/postcss/lib/result.js,,2026-07-25T23:46:31.246645Z,2026-07-25T23:46:31.246645Z,{}
+file:root.d.ts,file,web/node_modules/postcss/lib/root.d.ts,,2026-07-25T23:46:31.247966Z,2026-07-25T23:46:31.247966Z,{}
+file:root.js,file,web/node_modules/postcss/lib/root.js,,2026-07-25T23:46:31.249287Z,2026-07-25T23:46:31.249287Z,{}
+file:rule.d.ts,file,web/node_modules/postcss/lib/rule.d.ts,,2026-07-25T23:46:31.250610Z,2026-07-25T23:46:31.250610Z,{}
+file:rule.js,file,web/node_modules/postcss/lib/rule.js,,2026-07-25T23:46:31.251931Z,2026-07-25T23:46:31.251931Z,{}
+file:stringifier.d.ts,file,web/node_modules/postcss/lib/stringifier.d.ts,,2026-07-25T23:46:31.253264Z,2026-07-25T23:46:31.253264Z,{}
+file:stringifier.js,file,web/node_modules/postcss/lib/stringifier.js,,2026-07-25T23:46:31.254629Z,2026-07-25T23:46:31.254629Z,{}
+file:stringify.d.ts,file,web/node_modules/postcss/lib/stringify.d.ts,,2026-07-25T23:46:31.255970Z,2026-07-25T23:46:31.255970Z,{}
+file:stringify.js,file,web/node_modules/postcss/lib/stringify.js,,2026-07-25T23:46:31.257310Z,2026-07-25T23:46:31.257310Z,{}
+file:symbols.js,file,web/node_modules/postcss/lib/symbols.js,,2026-07-25T23:46:31.258649Z,2026-07-25T23:46:31.258649Z,{}
+file:terminal-highlight.js,file,web/node_modules/postcss/lib/terminal-highlight.js,,2026-07-25T23:46:31.259989Z,2026-07-25T23:46:31.259989Z,{}
+file:tokenize.js,file,web/node_modules/postcss/lib/tokenize.js,,2026-07-25T23:46:31.261344Z,2026-07-25T23:46:31.261344Z,{}
+file:warn-once.js,file,web/node_modules/postcss/lib/warn-once.js,,2026-07-25T23:46:31.262691Z,2026-07-25T23:46:31.262691Z,{}
+file:warning.d.ts,file,web/node_modules/postcss/lib/warning.d.ts,,2026-07-25T23:46:31.264050Z,2026-07-25T23:46:31.264050Z,{}
+file:warning.js,file,web/node_modules/postcss/lib/warning.js,,2026-07-25T23:46:31.265415Z,2026-07-25T23:46:31.265415Z,{}
+file:getLogFilter.js,file,web/node_modules/rollup/dist/es/getLogFilter.js,,2026-07-25T23:46:31.272000Z,2026-07-25T23:46:31.272000Z,{}
+file:parseAst.js,file,web/node_modules/rollup/dist/es/parseAst.js,,2026-07-25T23:46:31.274673Z,2026-07-25T23:46:31.274673Z,{}
+file:rollup.js,file,web/node_modules/rollup/dist/es/rollup.js,,2026-07-25T23:46:31.276033Z,2026-07-25T23:46:31.276033Z,{}
+file:node-entry.js,file,web/node_modules/rollup/dist/es/shared/node-entry.js,,2026-07-25T23:46:31.277406Z,2026-07-25T23:46:31.277406Z,{}
+file:watch.js,file,web/node_modules/rollup/dist/es/shared/watch.js,,2026-07-25T23:46:31.280093Z,2026-07-25T23:46:31.280093Z,{}
+file:getLogFilter.d.ts,file,web/node_modules/rollup/dist/getLogFilter.d.ts,,2026-07-25T23:46:31.281476Z,2026-07-25T23:46:31.281476Z,{}
+file:loadConfigFile.d.ts,file,web/node_modules/rollup/dist/loadConfigFile.d.ts,,2026-07-25T23:46:31.284197Z,2026-07-25T23:46:31.284197Z,{}
+file:loadConfigFile.js,file,web/node_modules/rollup/dist/loadConfigFile.js,,2026-07-25T23:46:31.285592Z,2026-07-25T23:46:31.285592Z,{}
+file:native.js,file,web/node_modules/rollup/dist/native.js,,2026-07-25T23:46:31.286983Z,2026-07-25T23:46:31.286983Z,{}
+file:parseAst.d.ts,file,web/node_modules/rollup/dist/parseAst.d.ts,,2026-07-25T23:46:31.288371Z,2026-07-25T23:46:31.288371Z,{}
+file:rollup.d.ts,file,web/node_modules/rollup/dist/rollup.d.ts,,2026-07-25T23:46:31.291111Z,2026-07-25T23:46:31.291111Z,{}
+file:fsevents-importer.js,file,web/node_modules/rollup/dist/shared/fsevents-importer.js,,2026-07-25T23:46:31.293840Z,2026-07-25T23:46:31.293840Z,{}
+file:watch-cli.js,file,web/node_modules/rollup/dist/shared/watch-cli.js,,2026-07-25T23:46:31.300648Z,2026-07-25T23:46:31.300648Z,{}
+file:array-set.js,file,web/node_modules/source-map-js/lib/array-set.js,,2026-07-25T23:46:31.307419Z,2026-07-25T23:46:31.307419Z,{}
+file:base64-vlq.js,file,web/node_modules/source-map-js/lib/base64-vlq.js,,2026-07-25T23:46:31.308818Z,2026-07-25T23:46:31.308818Z,{}
+file:base64.js,file,web/node_modules/source-map-js/lib/base64.js,,2026-07-25T23:46:31.310216Z,2026-07-25T23:46:31.310216Z,{}
+file:binary-search.js,file,web/node_modules/source-map-js/lib/binary-search.js,,2026-07-25T23:46:31.311627Z,2026-07-25T23:46:31.311627Z,{}
+file:mapping-list.js,file,web/node_modules/source-map-js/lib/mapping-list.js,,2026-07-25T23:46:31.313042Z,2026-07-25T23:46:31.313042Z,{}
+file:quick-sort.js,file,web/node_modules/source-map-js/lib/quick-sort.js,,2026-07-25T23:46:31.314458Z,2026-07-25T23:46:31.314458Z,{}
+file:source-map-consumer.d.ts,file,web/node_modules/source-map-js/lib/source-map-consumer.d.ts,,2026-07-25T23:46:31.315874Z,2026-07-25T23:46:31.315874Z,{}
+file:source-map-consumer.js,file,web/node_modules/source-map-js/lib/source-map-consumer.js,,2026-07-25T23:46:31.317296Z,2026-07-25T23:46:31.317296Z,{}
+file:source-map-generator.d.ts,file,web/node_modules/source-map-js/lib/source-map-generator.d.ts,,2026-07-25T23:46:31.318731Z,2026-07-25T23:46:31.318731Z,{}
+file:source-map-generator.js,file,web/node_modules/source-map-js/lib/source-map-generator.js,,2026-07-25T23:46:31.320181Z,2026-07-25T23:46:31.320181Z,{}
+file:source-node.d.ts,file,web/node_modules/source-map-js/lib/source-node.d.ts,,2026-07-25T23:46:31.321608Z,2026-07-25T23:46:31.321608Z,{}
+file:source-node.js,file,web/node_modules/source-map-js/lib/source-node.js,,2026-07-25T23:46:31.323028Z,2026-07-25T23:46:31.323028Z,{}
+file:util.js,file,web/node_modules/source-map-js/lib/util.js,,2026-07-25T23:46:31.324450Z,2026-07-25T23:46:31.324450Z,{}
+file:source-map.d.ts,file,web/node_modules/source-map-js/source-map.d.ts,,2026-07-25T23:46:31.327245Z,2026-07-25T23:46:31.327245Z,{}
+file:source-map.js,file,web/node_modules/source-map-js/source-map.js,,2026-07-25T23:46:31.328680Z,2026-07-25T23:46:31.328680Z,{}
+file:style-mod.cjs,file,web/node_modules/style-mod/dist/style-mod.cjs,,2026-07-25T23:46:31.332905Z,2026-07-25T23:46:31.332905Z,{}
+file:style-mod.d.cts,file,web/node_modules/style-mod/dist/style-mod.d.cts,,2026-07-25T23:46:31.334359Z,2026-07-25T23:46:31.334359Z,{}
+file:style-mod.d.ts,file,web/node_modules/style-mod/src/style-mod.d.ts,,2026-07-25T23:46:31.338591Z,2026-07-25T23:46:31.338591Z,{}
+file:style-mod.js,file,web/node_modules/style-mod/src/style-mod.js,,2026-07-25T23:46:31.340037Z,2026-07-25T23:46:31.340037Z,{}
+file:test-style-mod.js,file,web/node_modules/style-mod/test/test-style-mod.js,,2026-07-25T23:46:31.341500Z,2026-07-25T23:46:31.341500Z,{}
+file:SECURITY.md,file,web/node_modules/typescript/SECURITY.md,,2026-07-25T23:46:31.345788Z,2026-07-25T23:46:31.345788Z,{}
+file:ThirdPartyNoticeText.txt,file,web/node_modules/typescript/ThirdPartyNoticeText.txt,,2026-07-25T23:46:31.347251Z,2026-07-25T23:46:31.347251Z,{}
+file:_tsc.js,file,web/node_modules/typescript/lib/_tsc.js,,2026-07-25T23:46:31.351514Z,2026-07-25T23:46:31.351514Z,{}
+file:_tsserver.js,file,web/node_modules/typescript/lib/_tsserver.js,,2026-07-25T23:46:31.352979Z,2026-07-25T23:46:31.352979Z,{}
+file:_typingsInstaller.js,file,web/node_modules/typescript/lib/_typingsInstaller.js,,2026-07-25T23:46:31.354449Z,2026-07-25T23:46:31.354449Z,{}
+file:diagnosticMessages.generated.json,file,web/node_modules/typescript/lib/cs/diagnosticMessages.generated.json,,2026-07-25T23:46:31.355938Z,2026-07-25T23:46:31.355938Z,{}
+file:lib.d.ts,file,web/node_modules/typescript/lib/lib.d.ts,,2026-07-25T23:46:31.365858Z,2026-07-25T23:46:31.365858Z,{}
+file:lib.decorators.d.ts,file,web/node_modules/typescript/lib/lib.decorators.d.ts,,2026-07-25T23:46:31.367327Z,2026-07-25T23:46:31.367327Z,{}
+file:lib.decorators.legacy.d.ts,file,web/node_modules/typescript/lib/lib.decorators.legacy.d.ts,,2026-07-25T23:46:31.368806Z,2026-07-25T23:46:31.368806Z,{}
+file:lib.dom.asynciterable.d.ts,file,web/node_modules/typescript/lib/lib.dom.asynciterable.d.ts,,2026-07-25T23:46:31.370284Z,2026-07-25T23:46:31.370284Z,{}
+file:lib.dom.d.ts,file,web/node_modules/typescript/lib/lib.dom.d.ts,,2026-07-25T23:46:31.371960Z,2026-07-25T23:46:31.371960Z,{}
+file:lib.dom.iterable.d.ts,file,web/node_modules/typescript/lib/lib.dom.iterable.d.ts,,2026-07-25T23:46:31.373707Z,2026-07-25T23:46:31.373707Z,{}
+file:lib.es2015.collection.d.ts,file,web/node_modules/typescript/lib/lib.es2015.collection.d.ts,,2026-07-25T23:46:31.375293Z,2026-07-25T23:46:31.375293Z,{}
+file:lib.es2015.core.d.ts,file,web/node_modules/typescript/lib/lib.es2015.core.d.ts,,2026-07-25T23:46:31.376856Z,2026-07-25T23:46:31.376856Z,{}
+file:lib.es2015.d.ts,file,web/node_modules/typescript/lib/lib.es2015.d.ts,,2026-07-25T23:46:31.378414Z,2026-07-25T23:46:31.378414Z,{}
+file:lib.es2015.generator.d.ts,file,web/node_modules/typescript/lib/lib.es2015.generator.d.ts,,2026-07-25T23:46:31.379967Z,2026-07-25T23:46:31.379967Z,{}
+file:lib.es2015.iterable.d.ts,file,web/node_modules/typescript/lib/lib.es2015.iterable.d.ts,,2026-07-25T23:46:31.381545Z,2026-07-25T23:46:31.381545Z,{}
+file:lib.es2015.promise.d.ts,file,web/node_modules/typescript/lib/lib.es2015.promise.d.ts,,2026-07-25T23:46:31.383128Z,2026-07-25T23:46:31.383128Z,{}
+file:lib.es2015.proxy.d.ts,file,web/node_modules/typescript/lib/lib.es2015.proxy.d.ts,,2026-07-25T23:46:31.384728Z,2026-07-25T23:46:31.384728Z,{}
+file:lib.es2015.reflect.d.ts,file,web/node_modules/typescript/lib/lib.es2015.reflect.d.ts,,2026-07-25T23:46:31.386278Z,2026-07-25T23:46:31.386278Z,{}
+file:lib.es2015.symbol.d.ts,file,web/node_modules/typescript/lib/lib.es2015.symbol.d.ts,,2026-07-25T23:46:31.387833Z,2026-07-25T23:46:31.387833Z,{}
+file:lib.es2015.symbol.wellknown.d.ts,file,web/node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts,,2026-07-25T23:46:31.389377Z,2026-07-25T23:46:31.389377Z,{}
+file:lib.es2016.array.include.d.ts,file,web/node_modules/typescript/lib/lib.es2016.array.include.d.ts,,2026-07-25T23:46:31.390928Z,2026-07-25T23:46:31.390928Z,{}
+file:lib.es2016.d.ts,file,web/node_modules/typescript/lib/lib.es2016.d.ts,,2026-07-25T23:46:31.392528Z,2026-07-25T23:46:31.392528Z,{}
+file:lib.es2016.full.d.ts,file,web/node_modules/typescript/lib/lib.es2016.full.d.ts,,2026-07-25T23:46:31.394110Z,2026-07-25T23:46:31.394110Z,{}
+file:lib.es2016.intl.d.ts,file,web/node_modules/typescript/lib/lib.es2016.intl.d.ts,,2026-07-25T23:46:31.395677Z,2026-07-25T23:46:31.395677Z,{}
+file:lib.es2017.arraybuffer.d.ts,file,web/node_modules/typescript/lib/lib.es2017.arraybuffer.d.ts,,2026-07-25T23:46:31.397252Z,2026-07-25T23:46:31.397252Z,{}
+file:lib.es2017.d.ts,file,web/node_modules/typescript/lib/lib.es2017.d.ts,,2026-07-25T23:46:31.398814Z,2026-07-25T23:46:31.398814Z,{}
+file:lib.es2017.date.d.ts,file,web/node_modules/typescript/lib/lib.es2017.date.d.ts,,2026-07-25T23:46:31.400377Z,2026-07-25T23:46:31.400377Z,{}
+file:lib.es2017.full.d.ts,file,web/node_modules/typescript/lib/lib.es2017.full.d.ts,,2026-07-25T23:46:31.401944Z,2026-07-25T23:46:31.401944Z,{}
+file:lib.es2017.intl.d.ts,file,web/node_modules/typescript/lib/lib.es2017.intl.d.ts,,2026-07-25T23:46:31.403513Z,2026-07-25T23:46:31.403513Z,{}
+file:lib.es2017.object.d.ts,file,web/node_modules/typescript/lib/lib.es2017.object.d.ts,,2026-07-25T23:46:31.405110Z,2026-07-25T23:46:31.405110Z,{}
+file:lib.es2017.sharedmemory.d.ts,file,web/node_modules/typescript/lib/lib.es2017.sharedmemory.d.ts,,2026-07-25T23:46:31.406688Z,2026-07-25T23:46:31.406688Z,{}
+file:lib.es2017.string.d.ts,file,web/node_modules/typescript/lib/lib.es2017.string.d.ts,,2026-07-25T23:46:31.408266Z,2026-07-25T23:46:31.408266Z,{}
+file:lib.es2017.typedarrays.d.ts,file,web/node_modules/typescript/lib/lib.es2017.typedarrays.d.ts,,2026-07-25T23:46:31.409848Z,2026-07-25T23:46:31.409848Z,{}
+file:lib.es2018.asyncgenerator.d.ts,file,web/node_modules/typescript/lib/lib.es2018.asyncgenerator.d.ts,,2026-07-25T23:46:31.411434Z,2026-07-25T23:46:31.411434Z,{}
+file:lib.es2018.asynciterable.d.ts,file,web/node_modules/typescript/lib/lib.es2018.asynciterable.d.ts,,2026-07-25T23:46:31.413019Z,2026-07-25T23:46:31.413019Z,{}
+file:lib.es2018.d.ts,file,web/node_modules/typescript/lib/lib.es2018.d.ts,,2026-07-25T23:46:31.414611Z,2026-07-25T23:46:31.414611Z,{}
+file:lib.es2018.full.d.ts,file,web/node_modules/typescript/lib/lib.es2018.full.d.ts,,2026-07-25T23:46:31.416242Z,2026-07-25T23:46:31.416242Z,{}
+file:lib.es2018.intl.d.ts,file,web/node_modules/typescript/lib/lib.es2018.intl.d.ts,,2026-07-25T23:46:31.417859Z,2026-07-25T23:46:31.417859Z,{}
+file:lib.es2018.promise.d.ts,file,web/node_modules/typescript/lib/lib.es2018.promise.d.ts,,2026-07-25T23:46:31.419473Z,2026-07-25T23:46:31.419473Z,{}
+file:lib.es2018.regexp.d.ts,file,web/node_modules/typescript/lib/lib.es2018.regexp.d.ts,,2026-07-25T23:46:31.421093Z,2026-07-25T23:46:31.421093Z,{}
+file:lib.es2019.array.d.ts,file,web/node_modules/typescript/lib/lib.es2019.array.d.ts,,2026-07-25T23:46:31.422718Z,2026-07-25T23:46:31.422718Z,{}
+file:lib.es2019.d.ts,file,web/node_modules/typescript/lib/lib.es2019.d.ts,,2026-07-25T23:46:31.424340Z,2026-07-25T23:46:31.424340Z,{}
+file:lib.es2019.full.d.ts,file,web/node_modules/typescript/lib/lib.es2019.full.d.ts,,2026-07-25T23:46:31.425966Z,2026-07-25T23:46:31.425966Z,{}
+file:lib.es2019.intl.d.ts,file,web/node_modules/typescript/lib/lib.es2019.intl.d.ts,,2026-07-25T23:46:31.427606Z,2026-07-25T23:46:31.427606Z,{}
+file:lib.es2019.object.d.ts,file,web/node_modules/typescript/lib/lib.es2019.object.d.ts,,2026-07-25T23:46:31.429226Z,2026-07-25T23:46:31.429226Z,{}
+file:lib.es2019.string.d.ts,file,web/node_modules/typescript/lib/lib.es2019.string.d.ts,,2026-07-25T23:46:31.430848Z,2026-07-25T23:46:31.430848Z,{}
+file:lib.es2019.symbol.d.ts,file,web/node_modules/typescript/lib/lib.es2019.symbol.d.ts,,2026-07-25T23:46:31.432497Z,2026-07-25T23:46:31.432497Z,{}
+file:lib.es2020.bigint.d.ts,file,web/node_modules/typescript/lib/lib.es2020.bigint.d.ts,,2026-07-25T23:46:31.434134Z,2026-07-25T23:46:31.434134Z,{}
+file:lib.es2020.d.ts,file,web/node_modules/typescript/lib/lib.es2020.d.ts,,2026-07-25T23:46:31.435776Z,2026-07-25T23:46:31.435776Z,{}
+file:lib.es2020.date.d.ts,file,web/node_modules/typescript/lib/lib.es2020.date.d.ts,,2026-07-25T23:46:31.437420Z,2026-07-25T23:46:31.437420Z,{}
+file:lib.es2020.full.d.ts,file,web/node_modules/typescript/lib/lib.es2020.full.d.ts,,2026-07-25T23:46:31.439070Z,2026-07-25T23:46:31.439070Z,{}
+file:lib.es2020.intl.d.ts,file,web/node_modules/typescript/lib/lib.es2020.intl.d.ts,,2026-07-25T23:46:31.440735Z,2026-07-25T23:46:31.440735Z,{}
+file:lib.es2020.number.d.ts,file,web/node_modules/typescript/lib/lib.es2020.number.d.ts,,2026-07-25T23:46:31.442394Z,2026-07-25T23:46:31.442394Z,{}
+file:lib.es2020.promise.d.ts,file,web/node_modules/typescript/lib/lib.es2020.promise.d.ts,,2026-07-25T23:46:31.444046Z,2026-07-25T23:46:31.444046Z,{}
+file:lib.es2020.sharedmemory.d.ts,file,web/node_modules/typescript/lib/lib.es2020.sharedmemory.d.ts,,2026-07-25T23:46:31.445703Z,2026-07-25T23:46:31.445703Z,{}
+file:lib.es2020.string.d.ts,file,web/node_modules/typescript/lib/lib.es2020.string.d.ts,,2026-07-25T23:46:31.447359Z,2026-07-25T23:46:31.447359Z,{}
+file:lib.es2020.symbol.wellknown.d.ts,file,web/node_modules/typescript/lib/lib.es2020.symbol.wellknown.d.ts,,2026-07-25T23:46:31.449036Z,2026-07-25T23:46:31.449036Z,{}
+file:lib.es2021.d.ts,file,web/node_modules/typescript/lib/lib.es2021.d.ts,,2026-07-25T23:46:31.450723Z,2026-07-25T23:46:31.450723Z,{}
+file:lib.es2021.full.d.ts,file,web/node_modules/typescript/lib/lib.es2021.full.d.ts,,2026-07-25T23:46:31.452402Z,2026-07-25T23:46:31.452402Z,{}
+file:lib.es2021.intl.d.ts,file,web/node_modules/typescript/lib/lib.es2021.intl.d.ts,,2026-07-25T23:46:31.454083Z,2026-07-25T23:46:31.454083Z,{}
+file:lib.es2021.promise.d.ts,file,web/node_modules/typescript/lib/lib.es2021.promise.d.ts,,2026-07-25T23:46:31.455758Z,2026-07-25T23:46:31.455758Z,{}
+file:lib.es2021.string.d.ts,file,web/node_modules/typescript/lib/lib.es2021.string.d.ts,,2026-07-25T23:46:31.457447Z,2026-07-25T23:46:31.457447Z,{}
+file:lib.es2021.weakref.d.ts,file,web/node_modules/typescript/lib/lib.es2021.weakref.d.ts,,2026-07-25T23:46:31.459141Z,2026-07-25T23:46:31.459141Z,{}
+file:lib.es2022.array.d.ts,file,web/node_modules/typescript/lib/lib.es2022.array.d.ts,,2026-07-25T23:46:31.460824Z,2026-07-25T23:46:31.460824Z,{}
+file:lib.es2022.d.ts,file,web/node_modules/typescript/lib/lib.es2022.d.ts,,2026-07-25T23:46:31.462506Z,2026-07-25T23:46:31.462506Z,{}
+file:lib.es2022.error.d.ts,file,web/node_modules/typescript/lib/lib.es2022.error.d.ts,,2026-07-25T23:46:31.464191Z,2026-07-25T23:46:31.464191Z,{}
+file:lib.es2022.full.d.ts,file,web/node_modules/typescript/lib/lib.es2022.full.d.ts,,2026-07-25T23:46:31.465894Z,2026-07-25T23:46:31.465894Z,{}
+file:lib.es2022.intl.d.ts,file,web/node_modules/typescript/lib/lib.es2022.intl.d.ts,,2026-07-25T23:46:31.467602Z,2026-07-25T23:46:31.467602Z,{}
+file:lib.es2022.object.d.ts,file,web/node_modules/typescript/lib/lib.es2022.object.d.ts,,2026-07-25T23:46:31.469307Z,2026-07-25T23:46:31.469307Z,{}
+file:lib.es2022.regexp.d.ts,file,web/node_modules/typescript/lib/lib.es2022.regexp.d.ts,,2026-07-25T23:46:31.471000Z,2026-07-25T23:46:31.471000Z,{}
+file:lib.es2022.string.d.ts,file,web/node_modules/typescript/lib/lib.es2022.string.d.ts,,2026-07-25T23:46:31.472699Z,2026-07-25T23:46:31.472699Z,{}
+file:lib.es2023.array.d.ts,file,web/node_modules/typescript/lib/lib.es2023.array.d.ts,,2026-07-25T23:46:31.474417Z,2026-07-25T23:46:31.474417Z,{}
+file:lib.es2023.collection.d.ts,file,web/node_modules/typescript/lib/lib.es2023.collection.d.ts,,2026-07-25T23:46:31.476125Z,2026-07-25T23:46:31.476125Z,{}
+file:lib.es2023.d.ts,file,web/node_modules/typescript/lib/lib.es2023.d.ts,,2026-07-25T23:46:31.477839Z,2026-07-25T23:46:31.477839Z,{}
+file:lib.es2023.full.d.ts,file,web/node_modules/typescript/lib/lib.es2023.full.d.ts,,2026-07-25T23:46:31.479553Z,2026-07-25T23:46:31.479553Z,{}
+file:lib.es2023.intl.d.ts,file,web/node_modules/typescript/lib/lib.es2023.intl.d.ts,,2026-07-25T23:46:31.481269Z,2026-07-25T23:46:31.481269Z,{}
+file:lib.es2024.arraybuffer.d.ts,file,web/node_modules/typescript/lib/lib.es2024.arraybuffer.d.ts,,2026-07-25T23:46:31.483004Z,2026-07-25T23:46:31.483004Z,{}
+file:lib.es2024.collection.d.ts,file,web/node_modules/typescript/lib/lib.es2024.collection.d.ts,,2026-07-25T23:46:31.484736Z,2026-07-25T23:46:31.484736Z,{}
+file:lib.es2024.d.ts,file,web/node_modules/typescript/lib/lib.es2024.d.ts,,2026-07-25T23:46:31.486464Z,2026-07-25T23:46:31.486464Z,{}
+file:lib.es2024.full.d.ts,file,web/node_modules/typescript/lib/lib.es2024.full.d.ts,,2026-07-25T23:46:31.488195Z,2026-07-25T23:46:31.488195Z,{}
+file:lib.es2024.object.d.ts,file,web/node_modules/typescript/lib/lib.es2024.object.d.ts,,2026-07-25T23:46:31.489927Z,2026-07-25T23:46:31.489927Z,{}
+file:lib.es2024.promise.d.ts,file,web/node_modules/typescript/lib/lib.es2024.promise.d.ts,,2026-07-25T23:46:31.491673Z,2026-07-25T23:46:31.491673Z,{}
+file:lib.es2024.regexp.d.ts,file,web/node_modules/typescript/lib/lib.es2024.regexp.d.ts,,2026-07-25T23:46:31.493418Z,2026-07-25T23:46:31.493418Z,{}
+file:lib.es2024.sharedmemory.d.ts,file,web/node_modules/typescript/lib/lib.es2024.sharedmemory.d.ts,,2026-07-25T23:46:31.495164Z,2026-07-25T23:46:31.495164Z,{}
+file:lib.es2024.string.d.ts,file,web/node_modules/typescript/lib/lib.es2024.string.d.ts,,2026-07-25T23:46:31.496908Z,2026-07-25T23:46:31.496908Z,{}
+file:lib.es5.d.ts,file,web/node_modules/typescript/lib/lib.es5.d.ts,,2026-07-25T23:46:31.498660Z,2026-07-25T23:46:31.498660Z,{}
+file:lib.es6.d.ts,file,web/node_modules/typescript/lib/lib.es6.d.ts,,2026-07-25T23:46:31.500425Z,2026-07-25T23:46:31.500425Z,{}
+file:lib.esnext.array.d.ts,file,web/node_modules/typescript/lib/lib.esnext.array.d.ts,,2026-07-25T23:46:31.502189Z,2026-07-25T23:46:31.502189Z,{}
+file:lib.esnext.collection.d.ts,file,web/node_modules/typescript/lib/lib.esnext.collection.d.ts,,2026-07-25T23:46:31.503952Z,2026-07-25T23:46:31.503952Z,{}
+file:lib.esnext.d.ts,file,web/node_modules/typescript/lib/lib.esnext.d.ts,,2026-07-25T23:46:31.505728Z,2026-07-25T23:46:31.505728Z,{}
+file:lib.esnext.decorators.d.ts,file,web/node_modules/typescript/lib/lib.esnext.decorators.d.ts,,2026-07-25T23:46:31.507496Z,2026-07-25T23:46:31.507496Z,{}
+file:lib.esnext.disposable.d.ts,file,web/node_modules/typescript/lib/lib.esnext.disposable.d.ts,,2026-07-25T23:46:31.509257Z,2026-07-25T23:46:31.509257Z,{}
+file:lib.esnext.error.d.ts,file,web/node_modules/typescript/lib/lib.esnext.error.d.ts,,2026-07-25T23:46:31.511028Z,2026-07-25T23:46:31.511028Z,{}
+file:lib.esnext.float16.d.ts,file,web/node_modules/typescript/lib/lib.esnext.float16.d.ts,,2026-07-25T23:46:31.512796Z,2026-07-25T23:46:31.512796Z,{}
+file:lib.esnext.full.d.ts,file,web/node_modules/typescript/lib/lib.esnext.full.d.ts,,2026-07-25T23:46:31.514565Z,2026-07-25T23:46:31.514565Z,{}
+file:lib.esnext.intl.d.ts,file,web/node_modules/typescript/lib/lib.esnext.intl.d.ts,,2026-07-25T23:46:31.516353Z,2026-07-25T23:46:31.516353Z,{}
+file:lib.esnext.iterator.d.ts,file,web/node_modules/typescript/lib/lib.esnext.iterator.d.ts,,2026-07-25T23:46:31.518133Z,2026-07-25T23:46:31.518133Z,{}
+file:lib.esnext.promise.d.ts,file,web/node_modules/typescript/lib/lib.esnext.promise.d.ts,,2026-07-25T23:46:31.519918Z,2026-07-25T23:46:31.519918Z,{}
+file:lib.esnext.sharedmemory.d.ts,file,web/node_modules/typescript/lib/lib.esnext.sharedmemory.d.ts,,2026-07-25T23:46:31.521712Z,2026-07-25T23:46:31.521712Z,{}
+file:lib.scripthost.d.ts,file,web/node_modules/typescript/lib/lib.scripthost.d.ts,,2026-07-25T23:46:31.523501Z,2026-07-25T23:46:31.523501Z,{}
+file:lib.webworker.asynciterable.d.ts,file,web/node_modules/typescript/lib/lib.webworker.asynciterable.d.ts,,2026-07-25T23:46:31.525292Z,2026-07-25T23:46:31.525292Z,{}
+file:lib.webworker.d.ts,file,web/node_modules/typescript/lib/lib.webworker.d.ts,,2026-07-25T23:46:31.527083Z,2026-07-25T23:46:31.527083Z,{}
+file:lib.webworker.importscripts.d.ts,file,web/node_modules/typescript/lib/lib.webworker.importscripts.d.ts,,2026-07-25T23:46:31.528865Z,2026-07-25T23:46:31.528865Z,{}
+file:lib.webworker.iterable.d.ts,file,web/node_modules/typescript/lib/lib.webworker.iterable.d.ts,,2026-07-25T23:46:31.530662Z,2026-07-25T23:46:31.530662Z,{}
+file:tsc.js,file,web/node_modules/typescript/lib/tsc.js,,2026-07-25T23:46:31.539455Z,2026-07-25T23:46:31.539455Z,{}
+file:tsserver.js,file,web/node_modules/typescript/lib/tsserver.js,,2026-07-25T23:46:31.541260Z,2026-07-25T23:46:31.541260Z,{}
+file:tsserverlibrary.d.ts,file,web/node_modules/typescript/lib/tsserverlibrary.d.ts,,2026-07-25T23:46:31.543062Z,2026-07-25T23:46:31.543062Z,{}
+file:tsserverlibrary.js,file,web/node_modules/typescript/lib/tsserverlibrary.js,,2026-07-25T23:46:31.544860Z,2026-07-25T23:46:31.544860Z,{}
+file:typesMap.json,file,web/node_modules/typescript/lib/typesMap.json,,2026-07-25T23:46:31.546668Z,2026-07-25T23:46:31.546668Z,{}
+file:typescript.d.ts,file,web/node_modules/typescript/lib/typescript.d.ts,,2026-07-25T23:46:31.548478Z,2026-07-25T23:46:31.548478Z,{}
+file:typescript.js,file,web/node_modules/typescript/lib/typescript.js,,2026-07-25T23:46:31.550324Z,2026-07-25T23:46:31.550324Z,{}
+file:typingsInstaller.js,file,web/node_modules/typescript/lib/typingsInstaller.js,,2026-07-25T23:46:31.552146Z,2026-07-25T23:46:31.552146Z,{}
+file:watchGuard.js,file,web/node_modules/typescript/lib/watchGuard.js,,2026-07-25T23:46:31.553963Z,2026-07-25T23:46:31.553963Z,{}
+file:openChrome.applescript,file,web/node_modules/vite/bin/openChrome.applescript,,2026-07-25T23:46:31.564564Z,2026-07-25T23:46:31.564564Z,{}
+file:vite.js,file,web/node_modules/vite/bin/vite.js,,2026-07-25T23:46:31.566398Z,2026-07-25T23:46:31.566398Z,{}
+file:client.d.ts,file,web/node_modules/vite/client.d.ts,,2026-07-25T23:46:31.568229Z,2026-07-25T23:46:31.568229Z,{}
+file:client.mjs,file,web/node_modules/vite/dist/client/client.mjs,,2026-07-25T23:46:31.570074Z,2026-07-25T23:46:31.570074Z,{}
+file:env.mjs,file,web/node_modules/vite/dist/client/env.mjs,,2026-07-25T23:46:31.571918Z,2026-07-25T23:46:31.571918Z,{}
+file:publicUtils.cjs,file,web/node_modules/vite/dist/node-cjs/publicUtils.cjs,,2026-07-25T23:46:31.573759Z,2026-07-25T23:46:31.573759Z,{}
+file:dep-BB45zftN.js,file,web/node_modules/vite/dist/node/chunks/dep-BB45zftN.js,,2026-07-25T23:46:31.575604Z,2026-07-25T23:46:31.575604Z,{}
+file:dep-BK3b2jBa.js,file,web/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js,,2026-07-25T23:46:31.577441Z,2026-07-25T23:46:31.577441Z,{}
+file:dep-D-7KCb9p.js,file,web/node_modules/vite/dist/node/chunks/dep-D-7KCb9p.js,,2026-07-25T23:46:31.579277Z,2026-07-25T23:46:31.579277Z,{}
+file:dep-Dnp7gl8U.js,file,web/node_modules/vite/dist/node/chunks/dep-Dnp7gl8U.js,,2026-07-25T23:46:31.581111Z,2026-07-25T23:46:31.581111Z,{}
+file:dep-IQS-Za7F.js,file,web/node_modules/vite/dist/node/chunks/dep-IQS-Za7F.js,,2026-07-25T23:46:31.582996Z,2026-07-25T23:46:31.582996Z,{}
+file:cli.js,file,web/node_modules/vite/dist/node/cli.js,,2026-07-25T23:46:31.584868Z,2026-07-25T23:46:31.584868Z,{}
+file:runtime.d.ts,file,web/node_modules/vite/dist/node/runtime.d.ts,,2026-07-25T23:46:31.592096Z,2026-07-25T23:46:31.592096Z,{}
+file:runtime.js,file,web/node_modules/vite/dist/node/runtime.js,,2026-07-25T23:46:31.593943Z,2026-07-25T23:46:31.593943Z,{}
+file:types.d-aGj9QkWt.d.ts,file,web/node_modules/vite/dist/node/types.d-aGj9QkWt.d.ts,,2026-07-25T23:46:31.595793Z,2026-07-25T23:46:31.595793Z,{}
+file:customEvent.d.ts,file,web/node_modules/vite/types/customEvent.d.ts,,2026-07-25T23:46:31.603065Z,2026-07-25T23:46:31.603065Z,{}
+file:hmrPayload.d.ts,file,web/node_modules/vite/types/hmrPayload.d.ts,,2026-07-25T23:46:31.604935Z,2026-07-25T23:46:31.604935Z,{}
+file:hot.d.ts,file,web/node_modules/vite/types/hot.d.ts,,2026-07-25T23:46:31.606795Z,2026-07-25T23:46:31.606795Z,{}
+file:import-meta.d.ts,file,web/node_modules/vite/types/import-meta.d.ts,,2026-07-25T23:46:31.608655Z,2026-07-25T23:46:31.608655Z,{}
+file:importGlob.d.ts,file,web/node_modules/vite/types/importGlob.d.ts,,2026-07-25T23:46:31.610526Z,2026-07-25T23:46:31.610526Z,{}
+file:importMeta.d.ts,file,web/node_modules/vite/types/importMeta.d.ts,,2026-07-25T23:46:31.612393Z,2026-07-25T23:46:31.612393Z,{}
+file:metadata.d.ts,file,web/node_modules/vite/types/metadata.d.ts,,2026-07-25T23:46:31.614260Z,2026-07-25T23:46:31.614260Z,{}
+commit:writing-surface:016e10ba0e,commit,Bookend: full web writing surface built on top of harness,,2026-07-25T23:46:31.632457Z,2026-07-25T23:46:31.632457Z,{}
+file:chapter_meta.py,file,assembly/chapter_meta.py,,2026-07-25T23:46:31.637956Z,2026-07-25T23:46:31.637956Z,{}
+file:migrate_metadata.py,file,assembly/migrate_metadata.py,,2026-07-25T23:46:31.641682Z,2026-07-25T23:46:31.641682Z,{}
+file:prose_check.py,file,assembly/prose_check.py,,2026-07-25T23:46:31.643562Z,2026-07-25T23:46:31.643562Z,{}
+file:ch00_prologue.md,file,content/ch00_prologue.md,,2026-07-25T23:46:31.645438Z,2026-07-25T23:46:31.645438Z,{}
+file:ch01_ordinary_world.md,file,content/ch01_ordinary_world.md,,2026-07-25T23:46:31.647323Z,2026-07-25T23:46:31.647323Z,{}
+file:ch02_call_to_adventure.md,file,content/ch02_call_to_adventure.md,,2026-07-25T23:46:31.649211Z,2026-07-25T23:46:31.649211Z,{}
+file:ch03_refusal_of_the_call.md,file,content/ch03_refusal_of_the_call.md,,2026-07-25T23:46:31.651109Z,2026-07-25T23:46:31.651109Z,{}
+file:ch04_meeting_the_mentor.md,file,content/ch04_meeting_the_mentor.md,,2026-07-25T23:46:31.653021Z,2026-07-25T23:46:31.653021Z,{}
+file:ch05_crossing_the_first_threshold.md,file,content/ch05_crossing_the_first_threshold.md,,2026-07-25T23:46:31.654937Z,2026-07-25T23:46:31.654937Z,{}
+file:ch06_tests_allies_enemies.md,file,content/ch06_tests_allies_enemies.md,,2026-07-25T23:46:31.656844Z,2026-07-25T23:46:31.656844Z,{}
+file:ch07_approach_inmost_cave.md,file,content/ch07_approach_inmost_cave.md,,2026-07-25T23:46:31.658758Z,2026-07-25T23:46:31.658758Z,{}
+file:ch08_the_ordeal.md,file,content/ch08_the_ordeal.md,,2026-07-25T23:46:31.660668Z,2026-07-25T23:46:31.660668Z,{}
+file:ch09_reward_seizing_the_sword.md,file,content/ch09_reward_seizing_the_sword.md,,2026-07-25T23:46:31.662570Z,2026-07-25T23:46:31.662570Z,{}
+file:ch10_the_road_back.md,file,content/ch10_the_road_back.md,,2026-07-25T23:46:31.664483Z,2026-07-25T23:46:31.664483Z,{}
+file:ch11_the_resurrection.md,file,content/ch11_the_resurrection.md,,2026-07-25T23:46:31.666396Z,2026-07-25T23:46:31.666396Z,{}
+file:ch12_return_with_the_elixir.md,file,content/ch12_return_with_the_elixir.md,,2026-07-25T23:46:31.668315Z,2026-07-25T23:46:31.668315Z,{}
+file:ch13_epilogue.md,file,content/ch13_epilogue.md,,2026-07-25T23:46:31.670234Z,2026-07-25T23:46:31.670234Z,{}
+file:metadata_schema.yaml,file,tools/metadata_schema.yaml,,2026-07-25T23:46:31.674027Z,2026-07-25T23:46:31.674027Z,{}
+file:__init__.py,file,web/lib/__init__.py,,2026-07-25T23:46:31.683412Z,2026-07-25T23:46:31.683412Z,{}
+file:git.py,file,web/lib/git.py,,2026-07-25T23:46:31.689099Z,2026-07-25T23:46:31.689099Z,{}
+file:schema.py,file,web/lib/schema.py,,2026-07-25T23:46:31.691032Z,2026-07-25T23:46:31.691032Z,{}
+file:package-lock.json,file,web/package-lock.json,,2026-07-25T23:46:32.765963Z,2026-07-25T23:46:32.765963Z,{}
+file:panel.js,file,web/src/panel.js,,2026-07-25T23:46:32.784812Z,2026-07-25T23:46:32.784812Z,{}
+file:panel.ts,file,web/src/panel.ts,,2026-07-25T23:46:32.786750Z,2026-07-25T23:46:32.786750Z,{}
+file:types.js,file,web/src/types.js,,2026-07-25T23:46:32.790554Z,2026-07-25T23:46:32.790554Z,{}
+file:vite.config.ts,file,web/vite.config.ts,,2026-07-25T23:46:32.796246Z,2026-07-25T23:46:32.796246Z,{}
+file:chapter_metadata.csv,file,work_tracking/chapter_metadata.csv,,2026-07-25T23:46:32.798187Z,2026-07-25T23:46:32.798187Z,{}
+file:todo.md,file,work_tracking/todo.md,,2026-07-25T23:46:32.800157Z,2026-07-25T23:46:32.800157Z,{}
+file:wordcount_log.csv,file,work_tracking/wordcount_log.csv,,2026-07-25T23:46:32.802404Z,2026-07-25T23:46:32.802404Z,{}
+file:workman_google_epub_advice.md,file,workman_google_epub_advice.md,,2026-07-25T23:46:32.804356Z,2026-07-25T23:46:32.804356Z,{}
+commit:writing-surface:db4b409b48,commit,Untrack prior_art_notes.md — now globally gitignored as AI session artifact,,2026-07-25T23:46:32.806307Z,2026-07-25T23:46:32.806307Z,{}
+file:prior_art_notes.md,file,prior_art_notes.md,,2026-07-25T23:46:32.808267Z,2026-07-25T23:46:32.808267Z,{}
+commit:writing-surface:1118e781bb,commit,North star: AI-integrated experience in CLAUDE.md and todo.md,,2026-07-25T23:46:32.810218Z,2026-07-25T23:46:32.810218Z,{}
+commit:writing-surface:f5a65d409d,commit,Backlog: AI-integrated writing experience — conversation layer over Makefile engine,,2026-07-25T23:46:32.815967Z,2026-07-25T23:46:32.815967Z,{}
+commit:writing-surface:67367f4518,commit,"Update CLAUDE.md: Sprint 03 complete, prose container design, current assembly tools",,2026-07-25T23:46:32.819839Z,2026-07-25T23:46:32.819839Z,{}
+commit:writing-surface:af6a86b872,commit,"Backlog: epub transform must strip metadata, markers, direction, history, nav",,2026-07-25T23:46:32.823739Z,2026-07-25T23:46:32.823739Z,{}
+commit:writing-surface:b33015ac62,commit,Revert container marker stripping — HTML comments are invisible in rendered output,,2026-07-25T23:46:32.827686Z,2026-07-25T23:46:32.827686Z,{}
+commit:writing-surface:565d84e3b8,commit,Add make draft; strip container markers from assemble output; preview backlog,,2026-07-25T23:46:32.831587Z,2026-07-25T23:46:32.831587Z,{}
+commit:writing-surface:26f10e371d,commit,"Sync harness targets: edit-ready, edit, excel, diff-csv, AI editing section",,2026-07-25T23:46:32.839326Z,2026-07-25T23:46:32.839326Z,{}
+commit:writing-surface:4a64001627,commit,"Sprint 03: chapter_review, prose containers, epub pipeline backlog",,2026-07-25T23:46:32.845194Z,2026-07-25T23:46:32.845194Z,{}
+file:prose_container.py,file,assembly/prose_container.py,,2026-07-25T23:46:32.851033Z,2026-07-25T23:46:32.851033Z,{}
+file:prior_art_sigil_preflight.md,file,work_tracking/prior_art_sigil_preflight.md,,2026-07-25T23:46:32.882070Z,2026-07-25T23:46:32.882070Z,{}
+commit:writing-surface:c3c513f2e5,commit,Add contextual wrong-word detection to edit_strict,,2026-07-25T23:46:32.887939Z,2026-07-25T23:46:32.887939Z,{}
+file:edit_strict.txt,file,behaviors/writing/edit_strict.txt,,2026-07-25T23:46:32.889939Z,2026-07-25T23:46:32.889939Z,{}
+commit:writing-surface:539455b29d,commit,"Tighten edit_strict — mechanical errors only, no style changes",,2026-07-25T23:46:32.892001Z,2026-07-25T23:46:32.892001Z,{}
+commit:writing-surface:8340163439,commit,Promote .gitignore from the-mathematician — exclude binary indexes and editor settings,,2026-07-25T23:46:32.895970Z,2026-07-25T23:46:32.895970Z,{}
+commit:writing-surface:b0c3848b6e,commit,Add edit_epigraph behavior — chapter earns its opening quote,,2026-07-25T23:46:32.899915Z,2026-07-25T23:46:32.899915Z,{}
+file:edit_epigraph.txt,file,behaviors/writing/edit_epigraph.txt,,2026-07-25T23:46:32.901936Z,2026-07-25T23:46:32.901936Z,{}
+commit:writing-surface:048be68a9f,commit,Add writing editor behaviors and edit-ready to chapter_meta.py,,2026-07-25T23:46:32.903952Z,2026-07-25T23:46:32.903952Z,{}
+file:edit_action_blocking.txt,file,behaviors/writing/edit_action_blocking.txt,,2026-07-25T23:46:32.907919Z,2026-07-25T23:46:32.907919Z,{}
+file:edit_backstory.txt,file,behaviors/writing/edit_backstory.txt,,2026-07-25T23:46:32.909940Z,2026-07-25T23:46:32.909940Z,{}
+file:edit_character_voice.txt,file,behaviors/writing/edit_character_voice.txt,,2026-07-25T23:46:32.911947Z,2026-07-25T23:46:32.911947Z,{}
+file:edit_composite.txt,file,behaviors/writing/edit_composite.txt,,2026-07-25T23:46:32.913970Z,2026-07-25T23:46:32.913970Z,{}
+file:edit_continuity.txt,file,behaviors/writing/edit_continuity.txt,,2026-07-25T23:46:32.916001Z,2026-07-25T23:46:32.916001Z,{}
+file:edit_dialogue.txt,file,behaviors/writing/edit_dialogue.txt,,2026-07-25T23:46:32.918042Z,2026-07-25T23:46:32.918042Z,{}
+file:edit_emotional_precision.txt,file,behaviors/writing/edit_emotional_precision.txt,,2026-07-25T23:46:32.920081Z,2026-07-25T23:46:32.920081Z,{}
+file:edit_imagery.txt,file,behaviors/writing/edit_imagery.txt,,2026-07-25T23:46:32.922121Z,2026-07-25T23:46:32.922121Z,{}
+file:edit_opening.txt,file,behaviors/writing/edit_opening.txt,,2026-07-25T23:46:32.924169Z,2026-07-25T23:46:32.924169Z,{}
+file:edit_pacing.txt,file,behaviors/writing/edit_pacing.txt,,2026-07-25T23:46:32.926206Z,2026-07-25T23:46:32.926206Z,{}
+file:edit_passive_voice.txt,file,behaviors/writing/edit_passive_voice.txt,,2026-07-25T23:46:32.928237Z,2026-07-25T23:46:32.928237Z,{}
+file:edit_pov.txt,file,behaviors/writing/edit_pov.txt,,2026-07-25T23:46:32.930275Z,2026-07-25T23:46:32.930275Z,{}
+file:edit_rhythm.txt,file,behaviors/writing/edit_rhythm.txt,,2026-07-25T23:46:32.932333Z,2026-07-25T23:46:32.932333Z,{}
+file:edit_scene_purpose.txt,file,behaviors/writing/edit_scene_purpose.txt,,2026-07-25T23:46:32.934394Z,2026-07-25T23:46:32.934394Z,{}
+file:edit_sensory_detail.txt,file,behaviors/writing/edit_sensory_detail.txt,,2026-07-25T23:46:32.936456Z,2026-07-25T23:46:32.936456Z,{}
+file:edit_show_not_tell.txt,file,behaviors/writing/edit_show_not_tell.txt,,2026-07-25T23:46:32.938509Z,2026-07-25T23:46:32.938509Z,{}
+file:edit_style_calibration.txt,file,behaviors/writing/edit_style_calibration.txt,,2026-07-25T23:46:32.942578Z,2026-07-25T23:46:32.942578Z,{}
+file:edit_subtext.txt,file,behaviors/writing/edit_subtext.txt,,2026-07-25T23:46:32.944638Z,2026-07-25T23:46:32.944638Z,{}
+file:edit_tension_stakes.txt,file,behaviors/writing/edit_tension_stakes.txt,,2026-07-25T23:46:32.946692Z,2026-07-25T23:46:32.946692Z,{}
+file:edit_tighten.txt,file,behaviors/writing/edit_tighten.txt,,2026-07-25T23:46:32.948760Z,2026-07-25T23:46:32.948760Z,{}
+file:edit_transitions.txt,file,behaviors/writing/edit_transitions.txt,,2026-07-25T23:46:32.950832Z,2026-07-25T23:46:32.950832Z,{}
+commit:writing-surface:04ac4be216,commit,add make promise — audit promise annotations across all chapter files,,2026-07-25T23:46:32.952899Z,2026-07-25T23:46:32.952899Z,{}
+commit:writing-surface:7244dd0784,commit,add opening/closing prose slots and promise annotation system,,2026-07-25T23:46:32.959010Z,2026-07-25T23:46:32.959010Z,{}
+commit:writing-surface:6004ff93fa,commit,"add coach command, annotation protocol, and Sprint 03 plan",,2026-07-25T23:46:32.995514Z,2026-07-25T23:46:32.995514Z,{}
+file:SPRINT_03.md,file,sprints/SPRINT_03.md,,2026-07-25T23:46:33.003644Z,2026-07-25T23:46:33.003644Z,{}
+file:ai_annotation_protocol_conversation.md,file,work_tracking/ai_annotation_protocol_conversation.md,,2026-07-25T23:46:33.005725Z,2026-07-25T23:46:33.005725Z,{}
+commit:writing-surface:f2b752fc37,commit,"fix copyright notice to GPL-2.0-or-later, remove CC BY 4.0",,2026-07-25T23:46:33.007823Z,2026-07-25T23:46:33.007823Z,{}
+commit:writing-surface:288cdf01c0,commit,"switch license to GPL-2.0, add copyright headers to all scripts",,2026-07-25T23:46:33.011934Z,2026-07-25T23:46:33.011934Z,{}
+file:book.sh,file,assembly/book.sh,,2026-07-25T23:46:33.018098Z,2026-07-25T23:46:33.018098Z,{}
+file:build_question_bank.py,file,assembly/build_question_bank.py,,2026-07-25T23:46:33.020202Z,2026-07-25T23:46:33.020202Z,{}
+file:curate_questions.py,file,assembly/curate_questions.py,,2026-07-25T23:46:33.024357Z,2026-07-25T23:46:33.024357Z,{}
+file:disassemble.py,file,assembly/disassemble.py,,2026-07-25T23:46:33.026457Z,2026-07-25T23:46:33.026457Z,{}
+file:splat.py,file,assembly/splat.py,,2026-07-25T23:46:33.030602Z,2026-07-25T23:46:33.030602Z,{}
+file:wordcount.py,file,assembly/wordcount.py,,2026-07-25T23:46:33.032758Z,2026-07-25T23:46:33.032758Z,{}
+commit:writing-surface:e6b42aa51b,commit,fix chapter_meta export to compute prose word count instead of reading empty header field,,2026-07-25T23:46:33.034952Z,2026-07-25T23:46:33.034952Z,{}
+commit:writing-surface:e03fba6c36,commit,add raw write mode and splat tool; misc fixes,,2026-07-25T23:46:33.039135Z,2026-07-25T23:46:33.039135Z,{}
+file:story_raw.md,file,work_tracking/story_raw.md,,2026-07-25T23:46:33.053657Z,2026-07-25T23:46:33.053657Z,{}
+commit:writing-surface:0ca694e13e,commit,".vimrc added to project, vim adds a lot of heavy lifting for prose editing.",,2026-07-25T23:46:33.055795Z,2026-07-25T23:46:33.055795Z,{}
+file:.vimrc,file,.vimrc,,2026-07-25T23:46:33.057942Z,2026-07-25T23:46:33.057942Z,{}
+commit:writing-surface:43dd2ecaee,commit,fix wordcount scaffold inflation and ghost.toml TOML parse error,,2026-07-25T23:46:33.060098Z,2026-07-25T23:46:33.060098Z,{}
+file:ghost.toml,file,ghost.toml,,2026-07-25T23:46:33.064319Z,2026-07-25T23:46:33.064319Z,{}
+file:ghost_setup_bug.md,file,ghost_setup_bug.md,,2026-07-25T23:46:33.066460Z,2026-07-25T23:46:33.066460Z,{}
+commit:writing-surface:544a47bf03,commit,add content improvement system spec and expand ai writer contract,,2026-07-25T23:46:33.070674Z,2026-07-25T23:46:33.070674Z,{}
+file:ai_writer_contract.md,file,tools/ai_writer_contract.md,,2026-07-25T23:46:33.072825Z,2026-07-25T23:46:33.072825Z,{}
+file:chapter_review_spec.md,file,work_tracking/chapter_review_spec.md,,2026-07-25T23:46:33.074965Z,2026-07-25T23:46:33.074965Z,{}
+commit:writing-surface:5fc8a770ed,commit,add ai-writer doctrine: the_writer.md and ai_writer_contract.md,,2026-07-25T23:46:33.079201Z,2026-07-25T23:46:33.079201Z,{}
+file:the_writer.md,file,tools/the_writer.md,,2026-07-25T23:46:33.085567Z,2026-07-25T23:46:33.085567Z,{}
+file:vim-markdown-writing-setup.md,file,vim_help/vim-markdown-writing-setup.md,,2026-07-25T23:46:33.087714Z,2026-07-25T23:46:33.087714Z,{}
+commit:writing-surface:a59bd66ffb,commit,update README to reflect working harness tools and question bank pipeline,,2026-07-25T23:46:33.091983Z,2026-07-25T23:46:33.091983Z,{}
+commit:writing-surface:0fb1caf7c0,commit,"add question bank pipeline (build, curate, promote) and product backlog",,2026-07-25T23:46:33.096236Z,2026-07-25T23:46:33.096236Z,{}
+file:character_flat.yaml,file,tools/question_bank_review/character_flat.yaml,,2026-07-25T23:46:33.104735Z,2026-07-25T23:46:33.104735Z,{}
+file:dialogue_flat.yaml,file,tools/question_bank_review/dialogue_flat.yaml,,2026-07-25T23:46:33.106905Z,2026-07-25T23:46:33.106905Z,{}
+file:ending_wrong.yaml,file,tools/question_bank_review/ending_wrong.yaml,,2026-07-25T23:46:33.109083Z,2026-07-25T23:46:33.109083Z,{}
+file:first_chapter.yaml,file,tools/question_bank_review/first_chapter.yaml,,2026-07-25T23:46:33.111394Z,2026-07-25T23:46:33.111394Z,{}
+file:lost_in_middle.yaml,file,tools/question_bank_review/lost_in_middle.yaml,,2026-07-25T23:46:33.113742Z,2026-07-25T23:46:33.113742Z,{}
+file:nothing_happening.yaml,file,tools/question_bank_review/nothing_happening.yaml,,2026-07-25T23:46:33.115984Z,2026-07-25T23:46:33.115984Z,{}
+file:pacing_off.yaml,file,tools/question_bank_review/pacing_off.yaml,,2026-07-25T23:46:33.118215Z,2026-07-25T23:46:33.118215Z,{}
+file:prose_baggy.yaml,file,tools/question_bank_review/prose_baggy.yaml,,2026-07-25T23:46:33.120447Z,2026-07-25T23:46:33.120447Z,{}
+file:romance_not_working.yaml,file,tools/question_bank_review/romance_not_working.yaml,,2026-07-25T23:46:33.122664Z,2026-07-25T23:46:33.122664Z,{}
+file:shipping_slow_burn.yaml,file,tools/question_bank_review/shipping_slow_burn.yaml,,2026-07-25T23:46:33.124874Z,2026-07-25T23:46:33.124874Z,{}
+file:show_tell.yaml,file,tools/question_bank_review/show_tell.yaml,,2026-07-25T23:46:33.127082Z,2026-07-25T23:46:33.127082Z,{}
+file:stuck_general.yaml,file,tools/question_bank_review/stuck_general.yaml,,2026-07-25T23:46:33.129296Z,2026-07-25T23:46:33.129296Z,{}
+file:villain_flat.yaml,file,tools/question_bank_review/villain_flat.yaml,,2026-07-25T23:46:33.131520Z,2026-07-25T23:46:33.131520Z,{}
+file:voice_inconsistent.yaml,file,tools/question_bank_review/voice_inconsistent.yaml,,2026-07-25T23:46:33.133738Z,2026-07-25T23:46:33.133738Z,{}
+file:world_thin.yaml,file,tools/question_bank_review/world_thin.yaml,,2026-07-25T23:46:33.135958Z,2026-07-25T23:46:33.135958Z,{}
+commit:writing-surface:d1e9bdb120,commit,"add disassemble.py, assemble.py; update Makefile",,2026-07-25T23:46:33.140353Z,2026-07-25T23:46:33.140353Z,{}
+commit:writing-surface:d4fa3ca651,commit,add prose_check.py (make lint) — embarrassing-to-ship floor,,2026-07-25T23:46:33.149078Z,2026-07-25T23:46:33.149078Z,{}
+commit:writing-surface:e978630344,commit,genericize book content; add craft intelligence design,,2026-07-25T23:46:33.155658Z,2026-07-25T23:46:33.155658Z,{}
+file:BOOTSTRAP.md,file,BOOTSTRAP.md,,2026-07-25T23:46:33.157898Z,2026-07-25T23:46:33.157898Z,{}
+file:PRELOAD.md,file,PRELOAD.md,,2026-07-25T23:46:33.160136Z,2026-07-25T23:46:33.160136Z,{}
+file:craft_intelligence_design.md,file,tools/craft_intelligence_design.md,,2026-07-25T23:46:33.197296Z,2026-07-25T23:46:33.197296Z,{}
+file:deterministic_analysis_libraries.md,file,tools/deterministic_analysis_libraries.md,,2026-07-25T23:46:33.199545Z,2026-07-25T23:46:33.199545Z,{}
+file:existing_tools_integration.md,file,tools/existing_tools_integration.md,,2026-07-25T23:46:33.201788Z,2026-07-25T23:46:33.201788Z,{}
+file:theory_of_ai_in_literature.md,file,tools/theory_of_ai_in_literature.md,,2026-07-25T23:46:33.204039Z,2026-07-25T23:46:33.204039Z,{}
+file:writing_app_design.md,file,tools/writing_app_design.md,,2026-07-25T23:46:33.206300Z,2026-07-25T23:46:33.206300Z,{}
+file:writing_tool_product_spec.md,file,tools/writing_tool_product_spec.md,,2026-07-25T23:46:33.208558Z,2026-07-25T23:46:33.208558Z,{}
+file:how_i_got_here.md,file,work_tracking/how_i_got_here.md,,2026-07-25T23:46:33.210805Z,2026-07-25T23:46:33.210805Z,{}
+commit:writing-surface:560d9a80ae,commit,add PRELOAD.md and README for writing-surface project identity,,2026-07-25T23:46:33.213062Z,2026-07-25T23:46:33.213062Z,{}
+commit:writing-surface:5dbcac4aca,commit,init: writing-surface — cross-platform writing tool product spec,,2026-07-25T23:46:33.219698Z,2026-07-25T23:46:33.219698Z,{}
+commit:writing-surface:98e2eb814e,commit,add Nancy Atherton to acknowledgements,,2026-07-25T23:46:33.230770Z,2026-07-25T23:46:33.230770Z,{}
+file:ACKNOWLEDGEMENTS.md,file,ACKNOWLEDGEMENTS.md,,2026-07-25T23:46:33.233030Z,2026-07-25T23:46:33.233030Z,{}
+commit:writing-surface:ebe7661bf5,commit,add how_i_got_here seed doc; update acknowledgements with foundational reads,,2026-07-25T23:46:33.235296Z,2026-07-25T23:46:33.235296Z,{}
+commit:writing-surface:7ad6401300,commit,"add CC BY 4.0 license, copyright 2026 Mark Menkhus",,2026-07-25T23:46:33.241994Z,2026-07-25T23:46:33.241994Z,{}
+commit:writing-surface:e9f07dfdd6,commit,add acknowledgements,,2026-07-25T23:46:33.248671Z,2026-07-25T23:46:33.248671Z,{}
+commit:writing-surface:b67d437d55,commit,init: writing harness prototype,,2026-07-25T23:46:33.253163Z,2026-07-25T23:46:33.253163Z,{}
+file:character_story_bible.md,file,continuity/character_story_bible.md,,2026-07-25T23:46:33.301985Z,2026-07-25T23:46:33.301985Z,{}
+file:ending_notes.md,file,continuity/ending_notes.md,,2026-07-25T23:46:33.306306Z,2026-07-25T23:46:33.306306Z,{}
+file:outline.md,file,continuity/outline.md,,2026-07-25T23:46:33.308655Z,2026-07-25T23:46:33.308655Z,{}
+file:outline_analysis.md,file,continuity/outline_analysis.md,,2026-07-25T23:46:33.310967Z,2026-07-25T23:46:33.310967Z,{}
+file:ghost.toml.template,file,ghost.toml.template,,2026-07-25T23:46:33.313259Z,2026-07-25T23:46:33.313259Z,{}
+file:ch01_before.md,file,structures/educational-academy/content/ch01_before.md,,2026-07-25T23:46:33.320089Z,2026-07-25T23:46:33.320089Z,{}
+file:ch02_arrival.md,file,structures/educational-academy/content/ch02_arrival.md,,2026-07-25T23:46:33.322425Z,2026-07-25T23:46:33.322425Z,{}
+file:ch03_sorting.md,file,structures/educational-academy/content/ch03_sorting.md,,2026-07-25T23:46:33.324726Z,2026-07-25T23:46:33.324726Z,{}
+file:ch04_the_curriculum.md,file,structures/educational-academy/content/ch04_the_curriculum.md,,2026-07-25T23:46:33.327032Z,2026-07-25T23:46:33.327032Z,{}
+file:ch05_first_trial.md,file,structures/educational-academy/content/ch05_first_trial.md,,2026-07-25T23:46:33.329321Z,2026-07-25T23:46:33.329321Z,{}
+file:ch06_secret_layer.md,file,structures/educational-academy/content/ch06_secret_layer.md,,2026-07-25T23:46:33.331652Z,2026-07-25T23:46:33.331652Z,{}
+file:ch07_allies_and_rivals.md,file,structures/educational-academy/content/ch07_allies_and_rivals.md,,2026-07-25T23:46:33.334033Z,2026-07-25T23:46:33.334033Z,{}
+file:ch08_test_of_loyalty.md,file,structures/educational-academy/content/ch08_test_of_loyalty.md,,2026-07-25T23:46:33.336343Z,2026-07-25T23:46:33.336343Z,{}
+file:ch09_the_revelation.md,file,structures/educational-academy/content/ch09_the_revelation.md,,2026-07-25T23:46:33.338661Z,2026-07-25T23:46:33.338661Z,{}
+file:ch10_the_cost.md,file,structures/educational-academy/content/ch10_the_cost.md,,2026-07-25T23:46:33.340978Z,2026-07-25T23:46:33.340978Z,{}
+file:ch11_fracture.md,file,structures/educational-academy/content/ch11_fracture.md,,2026-07-25T23:46:33.343302Z,2026-07-25T23:46:33.343302Z,{}
+file:ch12_final_trial.md,file,structures/educational-academy/content/ch12_final_trial.md,,2026-07-25T23:46:33.345604Z,2026-07-25T23:46:33.345604Z,{}
+file:ch13_the_choice.md,file,structures/educational-academy/content/ch13_the_choice.md,,2026-07-25T23:46:33.347912Z,2026-07-25T23:46:33.347912Z,{}
+file:ch14_graduation.md,file,structures/educational-academy/content/ch14_graduation.md,,2026-07-25T23:46:33.350246Z,2026-07-25T23:46:33.350246Z,{}
+file:ch01_the_wound.md,file,structures/found-family/content/ch01_the_wound.md,,2026-07-25T23:46:33.354849Z,2026-07-25T23:46:33.354849Z,{}
+file:ch02_the_outsider.md,file,structures/found-family/content/ch02_the_outsider.md,,2026-07-25T23:46:33.357172Z,2026-07-25T23:46:33.357172Z,{}
+file:ch03_first_contact.md,file,structures/found-family/content/ch03_first_contact.md,,2026-07-25T23:46:33.359526Z,2026-07-25T23:46:33.359526Z,{}
+file:ch04_forced_proximity.md,file,structures/found-family/content/ch04_forced_proximity.md,,2026-07-25T23:46:33.361885Z,2026-07-25T23:46:33.361885Z,{}
+file:ch05_ensemble_forms.md,file,structures/found-family/content/ch05_ensemble_forms.md,,2026-07-25T23:46:33.364217Z,2026-07-25T23:46:33.364217Z,{}
+file:ch06_early_belonging.md,file,structures/found-family/content/ch06_early_belonging.md,,2026-07-25T23:46:33.366560Z,2026-07-25T23:46:33.366560Z,{}
+file:ch07_threat_appears.md,file,structures/found-family/content/ch07_threat_appears.md,,2026-07-25T23:46:33.368917Z,2026-07-25T23:46:33.368917Z,{}
+file:ch08_the_test.md,file,structures/found-family/content/ch08_the_test.md,,2026-07-25T23:46:33.371260Z,2026-07-25T23:46:33.371260Z,{}
+file:ch09_fracture.md,file,structures/found-family/content/ch09_fracture.md,,2026-07-25T23:46:33.373612Z,2026-07-25T23:46:33.373612Z,{}
+file:ch11_the_choice.md,file,structures/found-family/content/ch11_the_choice.md,,2026-07-25T23:46:33.378344Z,2026-07-25T23:46:33.378344Z,{}
+file:ch12_defense.md,file,structures/found-family/content/ch12_defense.md,,2026-07-25T23:46:33.381207Z,2026-07-25T23:46:33.381207Z,{}
+file:ch13_new_family.md,file,structures/found-family/content/ch13_new_family.md,,2026-07-25T23:46:33.383573Z,2026-07-25T23:46:33.383573Z,{}
+file:ch01_entry_point.md,file,structures/memoir/content/ch01_entry_point.md,,2026-07-25T23:46:33.390534Z,2026-07-25T23:46:33.390534Z,{}
+file:ch02_origin.md,file,structures/memoir/content/ch02_origin.md,,2026-07-25T23:46:33.392900Z,2026-07-25T23:46:33.392900Z,{}
+file:ch03_first_event.md,file,structures/memoir/content/ch03_first_event.md,,2026-07-25T23:46:33.395254Z,2026-07-25T23:46:33.395254Z,{}
+file:ch04_the_middle.md,file,structures/memoir/content/ch04_the_middle.md,,2026-07-25T23:46:33.397659Z,2026-07-25T23:46:33.397659Z,{}
+file:ch05_complications.md,file,structures/memoir/content/ch05_complications.md,,2026-07-25T23:46:33.400049Z,2026-07-25T23:46:33.400049Z,{}
+file:ch06_crisis.md,file,structures/memoir/content/ch06_crisis.md,,2026-07-25T23:46:33.402431Z,2026-07-25T23:46:33.402431Z,{}
+file:ch07_turning_point.md,file,structures/memoir/content/ch07_turning_point.md,,2026-07-25T23:46:33.404811Z,2026-07-25T23:46:33.404811Z,{}
+file:ch08_aftermath.md,file,structures/memoir/content/ch08_aftermath.md,,2026-07-25T23:46:33.407195Z,2026-07-25T23:46:33.407195Z,{}
+file:ch09_looking_back.md,file,structures/memoir/content/ch09_looking_back.md,,2026-07-25T23:46:33.409609Z,2026-07-25T23:46:33.409609Z,{}
+file:ch10_what_it_means.md,file,structures/memoir/content/ch10_what_it_means.md,,2026-07-25T23:46:33.411987Z,2026-07-25T23:46:33.411987Z,{}
+file:ch01_hook.md,file,structures/mystery-thriller/content/ch01_hook.md,,2026-07-25T23:46:33.419009Z,2026-07-25T23:46:33.419009Z,{}
+file:ch02_world_established.md,file,structures/mystery-thriller/content/ch02_world_established.md,,2026-07-25T23:46:33.421402Z,2026-07-25T23:46:33.421402Z,{}
+file:ch03_investigation_begins.md,file,structures/mystery-thriller/content/ch03_investigation_begins.md,,2026-07-25T23:46:33.423799Z,2026-07-25T23:46:33.423799Z,{}
+file:ch04_first_lead.md,file,structures/mystery-thriller/content/ch04_first_lead.md,,2026-07-25T23:46:33.426219Z,2026-07-25T23:46:33.426219Z,{}
+file:ch06_midpoint_revelation.md,file,structures/mystery-thriller/content/ch06_midpoint_revelation.md,,2026-07-25T23:46:33.430948Z,2026-07-25T23:46:33.430948Z,{}
+file:ch07_new_direction.md,file,structures/mystery-thriller/content/ch07_new_direction.md,,2026-07-25T23:46:33.433366Z,2026-07-25T23:46:33.433366Z,{}
+file:ch08_betrayal.md,file,structures/mystery-thriller/content/ch08_betrayal.md,,2026-07-25T23:46:33.435788Z,2026-07-25T23:46:33.435788Z,{}
+file:ch09_all_is_lost.md,file,structures/mystery-thriller/content/ch09_all_is_lost.md,,2026-07-25T23:46:33.438194Z,2026-07-25T23:46:33.438194Z,{}
+file:ch10_truth_revealed.md,file,structures/mystery-thriller/content/ch10_truth_revealed.md,,2026-07-25T23:46:33.440607Z,2026-07-25T23:46:33.440607Z,{}
+file:ch11_confrontation.md,file,structures/mystery-thriller/content/ch11_confrontation.md,,2026-07-25T23:46:33.443013Z,2026-07-25T23:46:33.443013Z,{}
+file:ch12_aftermath.md,file,structures/mystery-thriller/content/ch12_aftermath.md,,2026-07-25T23:46:33.445431Z,2026-07-25T23:46:33.445431Z,{}
+file:reading-for-craft.md,file,structures/reading-for-craft.md,,2026-07-25T23:46:33.447843Z,2026-07-25T23:46:33.447843Z,{}
+file:ch01_the_world.md,file,structures/romantasy/content/ch01_the_world.md,,2026-07-25T23:46:33.452650Z,2026-07-25T23:46:33.452650Z,{}
+file:ch02_protagonist_established.md,file,structures/romantasy/content/ch02_protagonist_established.md,,2026-07-25T23:46:33.455076Z,2026-07-25T23:46:33.455076Z,{}
+file:ch03_the_call.md,file,structures/romantasy/content/ch03_the_call.md,,2026-07-25T23:46:33.457521Z,2026-07-25T23:46:33.457521Z,{}
+file:ch04_first_encounter.md,file,structures/romantasy/content/ch04_first_encounter.md,,2026-07-25T23:46:33.459960Z,2026-07-25T23:46:33.459960Z,{}
+file:ch05_forced_together.md,file,structures/romantasy/content/ch05_forced_together.md,,2026-07-25T23:46:33.462389Z,2026-07-25T23:46:33.462389Z,{}
+file:ch06_world_deepens.md,file,structures/romantasy/content/ch06_world_deepens.md,,2026-07-25T23:46:33.464831Z,2026-07-25T23:46:33.464831Z,{}
+file:ch07_tension_and_trust.md,file,structures/romantasy/content/ch07_tension_and_trust.md,,2026-07-25T23:46:33.467287Z,2026-07-25T23:46:33.467287Z,{}
+file:ch08_midpoint_world.md,file,structures/romantasy/content/ch08_midpoint_world.md,,2026-07-25T23:46:33.469736Z,2026-07-25T23:46:33.469736Z,{}
+file:ch09_midpoint_romance.md,file,structures/romantasy/content/ch09_midpoint_romance.md,,2026-07-25T23:46:33.472169Z,2026-07-25T23:46:33.472169Z,{}
+file:ch10_complications.md,file,structures/romantasy/content/ch10_complications.md,,2026-07-25T23:46:33.474621Z,2026-07-25T23:46:33.474621Z,{}
+file:ch11_forced_apart.md,file,structures/romantasy/content/ch11_forced_apart.md,,2026-07-25T23:46:33.477078Z,2026-07-25T23:46:33.477078Z,{}
+file:ch12_dark_world.md,file,structures/romantasy/content/ch12_dark_world.md,,2026-07-25T23:46:33.479522Z,2026-07-25T23:46:33.479522Z,{}
+file:ch13_dark_romance.md,file,structures/romantasy/content/ch13_dark_romance.md,,2026-07-25T23:46:33.481963Z,2026-07-25T23:46:33.481963Z,{}
+file:ch14_reunion.md,file,structures/romantasy/content/ch14_reunion.md,,2026-07-25T23:46:33.484425Z,2026-07-25T23:46:33.484425Z,{}
+file:ch15_final_battle.md,file,structures/romantasy/content/ch15_final_battle.md,,2026-07-25T23:46:33.486885Z,2026-07-25T23:46:33.486885Z,{}
+file:ch16_resolution.md,file,structures/romantasy/content/ch16_resolution.md,,2026-07-25T23:46:33.489346Z,2026-07-25T23:46:33.489346Z,{}
+file:ch01_opening_image.md,file,structures/save-the-cat/content/ch01_opening_image.md,,2026-07-25T23:46:33.494198Z,2026-07-25T23:46:33.494198Z,{}
+file:ch02_theme_stated.md,file,structures/save-the-cat/content/ch02_theme_stated.md,,2026-07-25T23:46:33.496656Z,2026-07-25T23:46:33.496656Z,{}
+file:ch03_setup.md,file,structures/save-the-cat/content/ch03_setup.md,,2026-07-25T23:46:33.499132Z,2026-07-25T23:46:33.499132Z,{}
+file:ch04_catalyst.md,file,structures/save-the-cat/content/ch04_catalyst.md,,2026-07-25T23:46:33.501604Z,2026-07-25T23:46:33.501604Z,{}
+file:ch05_debate.md,file,structures/save-the-cat/content/ch05_debate.md,,2026-07-25T23:46:33.504086Z,2026-07-25T23:46:33.504086Z,{}
+file:ch06_break_into_two.md,file,structures/save-the-cat/content/ch06_break_into_two.md,,2026-07-25T23:46:33.506562Z,2026-07-25T23:46:33.506562Z,{}
+file:ch07_b_story.md,file,structures/save-the-cat/content/ch07_b_story.md,,2026-07-25T23:46:33.509045Z,2026-07-25T23:46:33.509045Z,{}
+file:ch08_fun_and_games.md,file,structures/save-the-cat/content/ch08_fun_and_games.md,,2026-07-25T23:46:33.511516Z,2026-07-25T23:46:33.511516Z,{}
+file:ch09_midpoint.md,file,structures/save-the-cat/content/ch09_midpoint.md,,2026-07-25T23:46:33.513989Z,2026-07-25T23:46:33.513989Z,{}
+file:ch10_bad_guys_close_in.md,file,structures/save-the-cat/content/ch10_bad_guys_close_in.md,,2026-07-25T23:46:33.516481Z,2026-07-25T23:46:33.516481Z,{}
+file:ch11_all_is_lost.md,file,structures/save-the-cat/content/ch11_all_is_lost.md,,2026-07-25T23:46:33.519000Z,2026-07-25T23:46:33.519000Z,{}
+file:ch12_dark_night.md,file,structures/save-the-cat/content/ch12_dark_night.md,,2026-07-25T23:46:33.521500Z,2026-07-25T23:46:33.521500Z,{}
+file:ch13_break_into_three.md,file,structures/save-the-cat/content/ch13_break_into_three.md,,2026-07-25T23:46:33.524005Z,2026-07-25T23:46:33.524005Z,{}
+file:ch14_finale.md,file,structures/save-the-cat/content/ch14_finale.md,,2026-07-25T23:46:33.526505Z,2026-07-25T23:46:33.526505Z,{}
+file:ch15_final_image.md,file,structures/save-the-cat/content/ch15_final_image.md,,2026-07-25T23:46:33.529003Z,2026-07-25T23:46:33.529003Z,{}
+file:ch01_opening.md,file,structures/three-act/content/ch01_opening.md,,2026-07-25T23:46:33.533972Z,2026-07-25T23:46:33.533972Z,{}
+file:ch02_inciting_incident.md,file,structures/three-act/content/ch02_inciting_incident.md,,2026-07-25T23:46:33.536480Z,2026-07-25T23:46:33.536480Z,{}
+file:ch03_debate.md,file,structures/three-act/content/ch03_debate.md,,2026-07-25T23:46:33.538997Z,2026-07-25T23:46:33.538997Z,{}
+file:ch04_plot_point_one.md,file,structures/three-act/content/ch04_plot_point_one.md,,2026-07-25T23:46:33.541509Z,2026-07-25T23:46:33.541509Z,{}
+file:ch05_rising_action.md,file,structures/three-act/content/ch05_rising_action.md,,2026-07-25T23:46:33.544022Z,2026-07-25T23:46:33.544022Z,{}
+file:ch06_midpoint.md,file,structures/three-act/content/ch06_midpoint.md,,2026-07-25T23:46:33.546531Z,2026-07-25T23:46:33.546531Z,{}
+file:ch07_complications.md,file,structures/three-act/content/ch07_complications.md,,2026-07-25T23:46:33.549049Z,2026-07-25T23:46:33.549049Z,{}
+file:ch08_all_is_lost.md,file,structures/three-act/content/ch08_all_is_lost.md,,2026-07-25T23:46:33.551571Z,2026-07-25T23:46:33.551571Z,{}
+file:ch09_plot_point_two.md,file,structures/three-act/content/ch09_plot_point_two.md,,2026-07-25T23:46:33.554111Z,2026-07-25T23:46:33.554111Z,{}
+file:ch10_climax.md,file,structures/three-act/content/ch10_climax.md,,2026-07-25T23:46:33.556646Z,2026-07-25T23:46:33.556646Z,{}
+file:ch11_resolution.md,file,structures/three-act/content/ch11_resolution.md,,2026-07-25T23:46:33.559176Z,2026-07-25T23:46:33.559176Z,{}
+file:ch01_ghost_and_weakness.md,file,structures/truby-anatomy/content/ch01_ghost_and_weakness.md,,2026-07-25T23:46:33.564190Z,2026-07-25T23:46:33.564190Z,{}
+file:ch02_need_and_world.md,file,structures/truby-anatomy/content/ch02_need_and_world.md,,2026-07-25T23:46:33.566737Z,2026-07-25T23:46:33.566737Z,{}
+file:ch03_inciting_event.md,file,structures/truby-anatomy/content/ch03_inciting_event.md,,2026-07-25T23:46:33.569287Z,2026-07-25T23:46:33.569287Z,{}
+file:ch04_desire.md,file,structures/truby-anatomy/content/ch04_desire.md,,2026-07-25T23:46:33.571845Z,2026-07-25T23:46:33.571845Z,{}
+file:ch05_opponent.md,file,structures/truby-anatomy/content/ch05_opponent.md,,2026-07-25T23:46:33.574395Z,2026-07-25T23:46:33.574395Z,{}
+file:ch06_ally_and_plan.md,file,structures/truby-anatomy/content/ch06_ally_and_plan.md,,2026-07-25T23:46:33.576937Z,2026-07-25T23:46:33.576937Z,{}
+file:ch07_drive.md,file,structures/truby-anatomy/content/ch07_drive.md,,2026-07-25T23:46:33.579481Z,2026-07-25T23:46:33.579481Z,{}
+file:ch08_first_revelation.md,file,structures/truby-anatomy/content/ch08_first_revelation.md,,2026-07-25T23:46:33.582030Z,2026-07-25T23:46:33.582030Z,{}
+file:ch09_opponent_counterattacks.md,file,structures/truby-anatomy/content/ch09_opponent_counterattacks.md,,2026-07-25T23:46:33.584578Z,2026-07-25T23:46:33.584578Z,{}
+file:ch10_attack_by_ally.md,file,structures/truby-anatomy/content/ch10_attack_by_ally.md,,2026-07-25T23:46:33.587140Z,2026-07-25T23:46:33.587140Z,{}
+file:ch11_apparent_defeat.md,file,structures/truby-anatomy/content/ch11_apparent_defeat.md,,2026-07-25T23:46:33.589716Z,2026-07-25T23:46:33.589716Z,{}
+file:ch12_obsessive_drive.md,file,structures/truby-anatomy/content/ch12_obsessive_drive.md,,2026-07-25T23:46:33.592277Z,2026-07-25T23:46:33.592277Z,{}
+file:ch13_battle.md,file,structures/truby-anatomy/content/ch13_battle.md,,2026-07-25T23:46:33.594845Z,2026-07-25T23:46:33.594845Z,{}
+file:ch14_self_revelation.md,file,structures/truby-anatomy/content/ch14_self_revelation.md,,2026-07-25T23:46:33.597412Z,2026-07-25T23:46:33.597412Z,{}
+file:ch15_moral_decision.md,file,structures/truby-anatomy/content/ch15_moral_decision.md,,2026-07-25T23:46:33.599976Z,2026-07-25T23:46:33.599976Z,{}
+file:craft-principles.md,file,tools/craft-principles.md,,2026-07-25T23:46:33.602558Z,2026-07-25T23:46:33.602558Z,{}
+file:technical_architecture.md,file,tools/technical_architecture.md,,2026-07-25T23:46:33.605143Z,2026-07-25T23:46:33.605143Z,{}
+file:project_notes.md,file,work_tracking/project_notes.md,,2026-07-25T23:46:33.612767Z,2026-07-25T23:46:33.612767Z,{}
+session:writing-surface:design_decisions,session,Locked architectural and product decisions for writing-surface,,2026-07-25T23:46:42.744208Z,2026-07-25T23:46:42.744208Z,{}
+session:writing-surface:design_methodology,session,"The development methodology Mark identified — design contracts first, stub implementations, let the spec be the truth",,2026-07-25T23:46:42.747887Z,2026-07-25T23:46:42.747887Z,{}
+session:writing-surface:design_philosophy,session,"Core philosophy on how AI is used in writing-surface — amplifier not replacement, guardrails travel with system not model",,2026-07-25T23:46:42.750967Z,2026-07-25T23:46:42.750967Z,{}
+session:writing-surface:feedback_project_copies,session,The-mathematician project has its own copies of writing-surface assembly scripts — they can drift from the source template,,2026-07-25T23:46:42.753982Z,2026-07-25T23:46:42.753982Z,{}
+session:writing-surface:feedback_python_packages,session,"Package installation uses uv, not pip or pip3",,2026-07-25T23:46:42.756837Z,2026-07-25T23:46:42.756837Z,{}
+session:writing-surface:open_source_ideas,session,Standalone projects worth releasing publicly that emerged from writing-surface work,,2026-07-25T23:46:42.759631Z,2026-07-25T23:46:42.759631Z,{}
+session:writing-surface:project,session,"What this project is, current state, and where it's headed",,2026-07-25T23:46:42.762388Z,2026-07-25T23:46:42.762388Z,{}
+session:writing-surface:user,session,"How Mark works, what he values, how to collaborate effectively",,2026-07-25T23:46:42.765133Z,2026-07-25T23:46:42.765133Z,{}
+repo:preventing_ai_overreach_with_hybrid_ai,repo,/Users/mark/Documents/writing/preventing_ai_overreach_with_hybrid_ai,,2026-07-25T23:46:52.188703Z,2026-07-25T23:46:52.188703Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:78b50b8432,commit,"Bring in reading-pause research: access-layer taxonomy, Windows AI parity, capstone Shortcuts",,2026-07-25T23:46:52.240431Z,2026-07-25T23:46:52.240431Z,{}
+file:REFERENCES.md,file,REFERENCES.md,,2026-07-25T23:46:52.243807Z,2026-07-25T23:46:52.243807Z,{}
+file:SHORTCUTS.md,file,SHORTCUTS.md,,2026-07-25T23:46:52.246581Z,2026-07-25T23:46:52.246581Z,{}
+file:01-saltzer-schroeder-1975.md,file,research/01-saltzer-schroeder-1975.md,,2026-07-25T23:46:52.249330Z,2026-07-25T23:46:52.249330Z,{}
+file:02-miller-yee-shapiro-2003.md,file,research/02-miller-yee-shapiro-2003.md,,2026-07-25T23:46:52.252373Z,2026-07-25T23:46:52.252373Z,{}
+file:03-miller-robust-composition-2006.md,file,research/03-miller-robust-composition-2006.md,,2026-07-25T23:46:52.255173Z,2026-07-25T23:46:52.255173Z,{}
+file:04-anthropic-how-we-contain-claude.md,file,research/04-anthropic-how-we-contain-claude.md,,2026-07-25T23:46:52.257957Z,2026-07-25T23:46:52.257957Z,{}
+file:05-staufer-et-al-2026-ai-agent-index.md,file,research/05-staufer-et-al-2026-ai-agent-index.md,,2026-07-25T23:46:52.260689Z,2026-07-25T23:46:52.260689Z,{}
+file:06-santos-grueiro-2026-lingering-authority.md,file,research/06-santos-grueiro-2026-lingering-authority.md,,2026-07-25T23:46:52.263426Z,2026-07-25T23:46:52.263426Z,{}
+file:07-rashidi-2026-balkanization.md,file,research/07-rashidi-2026-balkanization.md,,2026-07-25T23:46:52.266161Z,2026-07-25T23:46:52.266161Z,{}
+file:08-ai-modality-shift-legacy-apps.md,file,research/08-ai-modality-shift-legacy-apps.md,,2026-07-25T23:46:52.268895Z,2026-07-25T23:46:52.268895Z,{}
+file:09-todo-full-mirror.md,file,research/09-todo-full-mirror.md,,2026-07-25T23:46:52.271608Z,2026-07-25T23:46:52.271608Z,{}
+file:10-ai-access-layer-taxonomy.md,file,research/10-ai-access-layer-taxonomy.md,,2026-07-25T23:46:52.274344Z,2026-07-25T23:46:52.274344Z,{}
+file:11-shell-bridge-dispatch-patterns-and-spec.md,file,research/11-shell-bridge-dispatch-patterns-and-spec.md,,2026-07-25T23:46:52.277063Z,2026-07-25T23:46:52.277063Z,{}
+file:12-app-intents-trust-model.md,file,research/12-app-intents-trust-model.md,,2026-07-25T23:46:52.279798Z,2026-07-25T23:46:52.279798Z,{}
+file:13-windows-ai-accessibility-vs-apple.md,file,research/13-windows-ai-accessibility-vs-apple.md,,2026-07-25T23:46:52.282496Z,2026-07-25T23:46:52.282496Z,{}
+file:1003.1_posix_draft_open_std_org.pdf,file,sources/ai_access_layer_taxonomy_reading_list/1003.1_posix_draft_open_std_org.pdf,,2026-07-25T23:46:52.285196Z,2026-07-25T23:46:52.285196Z,{}
+file:2022_yao_et_al_react_2210.03629.pdf,file,sources/ai_access_layer_taxonomy_reading_list/2022_yao_et_al_react_2210.03629.pdf,,2026-07-25T23:46:52.287907Z,2026-07-25T23:46:52.287907Z,{}
+file:2023_openai_chatgpt_plugins_manifest.md,file,sources/ai_access_layer_taxonomy_reading_list/2023_openai_chatgpt_plugins_manifest.md,,2026-07-25T23:46:52.290620Z,2026-07-25T23:46:52.290620Z,{}
+file:2023_schick_et_al_toolformer_2302.04761.pdf,file,sources/ai_access_layer_taxonomy_reading_list/2023_schick_et_al_toolformer_2302.04761.pdf,,2026-07-25T23:46:52.293323Z,2026-07-25T23:46:52.293323Z,{}
+file:2024_anthropic_introducing_mcp.md,file,sources/ai_access_layer_taxonomy_reading_list/2024_anthropic_introducing_mcp.md,,2026-07-25T23:46:52.296028Z,2026-07-25T23:46:52.296028Z,{}
+file:2024_howard_llms_txt_proposal.md,file,sources/ai_access_layer_taxonomy_reading_list/2024_howard_llms_txt_proposal.md,,2026-07-25T23:46:52.298750Z,2026-07-25T23:46:52.298750Z,{}
+file:2024_yang_et_al_swe_agent_aci_2405.15793.pdf,file,sources/ai_access_layer_taxonomy_reading_list/2024_yang_et_al_swe_agent_aci_2405.15793.pdf,,2026-07-25T23:46:52.301515Z,2026-07-25T23:46:52.301515Z,{}
+file:2026_liu_et_al_agentos_2603.08938.pdf,file,sources/ai_modality_shift_reading_list/2026_liu_et_al_agentos_2603.08938.pdf,,2026-07-25T23:46:52.304327Z,2026-07-25T23:46:52.304327Z,{}
+file:2026_marro_torr_llm_agents_antidote_walled_gardens_2506.23978.pdf,file,sources/ai_modality_shift_reading_list/2026_marro_torr_llm_agents_antidote_walled_gardens_2506.23978.pdf,,2026-07-25T23:46:52.307207Z,2026-07-25T23:46:52.307207Z,{}
+file:2026_microsoft_bridging_legacy_desktop_apps_copilot_studio.md,file,sources/ai_modality_shift_reading_list/2026_microsoft_bridging_legacy_desktop_apps_copilot_studio.md,,2026-07-25T23:46:52.309979Z,2026-07-25T23:46:52.309979Z,{}
+file:1975_saltzer_schroeder_protection_of_information.pdf,file,sources/capability_security_reading_list/1975_saltzer_schroeder_protection_of_information.pdf,,2026-07-25T23:46:52.312766Z,2026-07-25T23:46:52.312766Z,{}
+file:2003_miller_yee_shapiro_capability_myths_demolished.pdf,file,sources/capability_security_reading_list/2003_miller_yee_shapiro_capability_myths_demolished.pdf,,2026-07-25T23:46:52.315563Z,2026-07-25T23:46:52.315563Z,{}
+file:2006_miller_robust_composition_thesis.pdf,file,sources/capability_security_reading_list/2006_miller_robust_composition_thesis.pdf,,2026-07-25T23:46:52.318401Z,2026-07-25T23:46:52.318401Z,{}
+file:2025_anthropic_how_we_contain_claude.md,file,sources/capability_security_reading_list/2025_anthropic_how_we_contain_claude.md,,2026-07-25T23:46:52.321294Z,2026-07-25T23:46:52.321294Z,{}
+file:2026_rashidi_balkanization_execution_security_2607.05743.pdf,file,sources/capability_security_reading_list/2026_rashidi_balkanization_execution_security_2607.05743.pdf,,2026-07-25T23:46:52.324103Z,2026-07-25T23:46:52.324103Z,{}
+file:2026_santos_grueiro_lingering_authority_2606.22504.pdf,file,sources/capability_security_reading_list/2026_santos_grueiro_lingering_authority_2606.22504.pdf,,2026-07-25T23:46:52.326876Z,2026-07-25T23:46:52.326876Z,{}
+file:2026_staufer_et_al_ai_agent_index_2602.17753.pdf,file,sources/capability_security_reading_list/2026_staufer_et_al_ai_agent_index_2602.17753.pdf,,2026-07-25T23:46:52.329665Z,2026-07-25T23:46:52.329665Z,{}
+file:dispatch_pattern_notes_busybox_git_kubectl_alfred.md,file,sources/shell_bridge_dispatch_patterns_reading_list/dispatch_pattern_notes_busybox_git_kubectl_alfred.md,,2026-07-25T23:46:52.332459Z,2026-07-25T23:46:52.332459Z,{}
+file:mcp_server_siri_shortcuts_readme.md,file,sources/shell_bridge_dispatch_patterns_reading_list/mcp_server_siri_shortcuts_readme.md,,2026-07-25T23:46:52.335267Z,2026-07-25T23:46:52.335267Z,{}
+file:shortcut_file_programmatic_generation_reliability_check.md,file,sources/shell_bridge_dispatch_patterns_reading_list/shortcut_file_programmatic_generation_reliability_check.md,,2026-07-25T23:46:52.338109Z,2026-07-25T23:46:52.338109Z,{}
+file:siri_reliability_reality_check_2026.md,file,sources/shell_bridge_dispatch_patterns_reading_list/siri_reliability_reality_check_2026.md,,2026-07-25T23:46:52.340970Z,2026-07-25T23:46:52.340970Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:8a6bef0489,commit,"Add Stein 2026 MCP-usage paper to reading list, note existing downloads",,2026-07-25T23:46:52.343792Z,2026-07-25T23:46:52.343792Z,{}
+file:TODO.md,file,TODO.md,,2026-07-25T23:46:52.346727Z,2026-07-25T23:46:52.346727Z,{}
+file:2026_stein_how_are_ai_agents_used_2603.23802.pdf,file,sources/capability_security_reading_list/2026_stein_how_are_ai_agents_used_2603.23802.pdf,,2026-07-25T23:46:52.349536Z,2026-07-25T23:46:52.349536Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:41ad172642,commit,"Name the value proposition: blind-spot catching, not code generation",,2026-07-25T23:46:52.352370Z,2026-07-25T23:46:52.352370Z,{}
+file:LEARNINGS.md,file,LEARNINGS.md,,2026-07-25T23:46:52.355212Z,2026-07-25T23:46:52.355212Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:275ec37e1c,commit,"Capture scope-blindness, AI opacity, and the reading-pause decision",,2026-07-25T23:46:52.360820Z,2026-07-25T23:46:52.360820Z,{}
+file:ch27-history-and-measurement.md,file,chapters/ch27-history-and-measurement.md,,2026-07-25T23:46:52.369157Z,2026-07-25T23:46:52.369157Z,{}
+file:ch29-the-clean-room-question.md,file,chapters/ch29-the-clean-room-question.md,,2026-07-25T23:46:52.371969Z,2026-07-25T23:46:52.371969Z,{}
+file:post_ai_economics_of_hybrid_architecture.md,file,post_ai_economics_of_hybrid_architecture.md,,2026-07-25T23:46:52.374784Z,2026-07-25T23:46:52.374784Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:d2d93836a7,commit,Add frontmatter to all remaining 37 chapters,,2026-07-25T23:46:52.377579Z,2026-07-25T23:46:52.377579Z,{}
+file:ch00-introduction.md,file,chapters/ch00-introduction.md,,2026-07-25T23:46:52.383157Z,2026-07-25T23:46:52.383157Z,{}
+file:ch02-guardrails-and-anthropomorphization.md,file,chapters/ch02-guardrails-and-anthropomorphization.md,,2026-07-25T23:46:52.386003Z,2026-07-25T23:46:52.386003Z,{}
+file:ch03-conventional-guardrails-as-precedent.md,file,chapters/ch03-conventional-guardrails-as-precedent.md,,2026-07-25T23:46:52.388851Z,2026-07-25T23:46:52.388851Z,{}
+file:ch04-the-disassembly-analogy.md,file,chapters/ch04-the-disassembly-analogy.md,,2026-07-25T23:46:52.391712Z,2026-07-25T23:46:52.391712Z,{}
+file:ch05-the-economic-argument.md,file,chapters/ch05-the-economic-argument.md,,2026-07-25T23:46:52.394553Z,2026-07-25T23:46:52.394553Z,{}
+file:ch06-the-counter-case.md,file,chapters/ch06-the-counter-case.md,,2026-07-25T23:46:52.397403Z,2026-07-25T23:46:52.397403Z,{}
+file:ch07-sunk-costs-and-bell-lapadula.md,file,chapters/ch07-sunk-costs-and-bell-lapadula.md,,2026-07-25T23:46:52.400262Z,2026-07-25T23:46:52.400262Z,{}
+file:ch08-case-study-lynx-and-brotli.md,file,chapters/ch08-case-study-lynx-and-brotli.md,,2026-07-25T23:46:52.403117Z,2026-07-25T23:46:52.403117Z,{}
+file:ch09-lynx-is-safer-than-curl.md,file,chapters/ch09-lynx-is-safer-than-curl.md,,2026-07-25T23:46:52.405990Z,2026-07-25T23:46:52.405990Z,{}
+file:ch10-voice.md,file,chapters/ch10-voice.md,,2026-07-25T23:46:52.408869Z,2026-07-25T23:46:52.408869Z,{}
+file:ch11-division-of-labor.md,file,chapters/ch11-division-of-labor.md,,2026-07-25T23:46:52.411728Z,2026-07-25T23:46:52.411728Z,{}
+file:ch12-the-classic-failure.md,file,chapters/ch12-the-classic-failure.md,,2026-07-25T23:46:52.414619Z,2026-07-25T23:46:52.414619Z,{}
+file:ch13-ai-is-harder-than-it-looks.md,file,chapters/ch13-ai-is-harder-than-it-looks.md,,2026-07-25T23:46:52.417487Z,2026-07-25T23:46:52.417487Z,{}
+file:ch14-the-capstone.md,file,chapters/ch14-the-capstone.md,,2026-07-25T23:46:52.420373Z,2026-07-25T23:46:52.420373Z,{}
+file:ch15-methodology.md,file,chapters/ch15-methodology.md,,2026-07-25T23:46:52.423335Z,2026-07-25T23:46:52.423335Z,{}
+file:ch16-where-hybrid-architecture-breaks-down.md,file,chapters/ch16-where-hybrid-architecture-breaks-down.md,,2026-07-25T23:46:52.426195Z,2026-07-25T23:46:52.426195Z,{}
+file:ch17-limit-one-the-supported-surface.md,file,chapters/ch17-limit-one-the-supported-surface.md,,2026-07-25T23:46:52.429071Z,2026-07-25T23:46:52.429071Z,{}
+file:ch18-limit-two-the-premise-isnt-pure.md,file,chapters/ch18-limit-two-the-premise-isnt-pure.md,,2026-07-25T23:46:52.431923Z,2026-07-25T23:46:52.431923Z,{}
+file:ch19-limit-three-the-economic-cost.md,file,chapters/ch19-limit-three-the-economic-cost.md,,2026-07-25T23:46:52.434803Z,2026-07-25T23:46:52.434803Z,{}
+file:ch20-limit-four-the-apple-siri-example.md,file,chapters/ch20-limit-four-the-apple-siri-example.md,,2026-07-25T23:46:52.437706Z,2026-07-25T23:46:52.437706Z,{}
+file:ch21-is-a-native-app-worth-it.md,file,chapters/ch21-is-a-native-app-worth-it.md,,2026-07-25T23:46:52.440578Z,2026-07-25T23:46:52.440578Z,{}
+file:ch22-the-proper-way-to-build.md,file,chapters/ch22-the-proper-way-to-build.md,,2026-07-25T23:46:52.443489Z,2026-07-25T23:46:52.443489Z,{}
+file:ch23-the-whole-premise-stated-plainly.md,file,chapters/ch23-the-whole-premise-stated-plainly.md,,2026-07-25T23:46:52.446377Z,2026-07-25T23:46:52.446377Z,{}
+file:ch24-case-study-scrivener.md,file,chapters/ch24-case-study-scrivener.md,,2026-07-25T23:46:52.449281Z,2026-07-25T23:46:52.449281Z,{}
+file:ch25-case-study-ghost.md,file,chapters/ch25-case-study-ghost.md,,2026-07-25T23:46:52.452171Z,2026-07-25T23:46:52.452171Z,{}
+file:ch26-the-real-reframe.md,file,chapters/ch26-the-real-reframe.md,,2026-07-25T23:46:52.455088Z,2026-07-25T23:46:52.455088Z,{}
+file:ch28-the-real-risk-of-ai.md,file,chapters/ch28-the-real-risk-of-ai.md,,2026-07-25T23:46:52.460967Z,2026-07-25T23:46:52.460967Z,{}
+file:ch30-software-with-existing-apis.md,file,chapters/ch30-software-with-existing-apis.md,,2026-07-25T23:46:52.466705Z,2026-07-25T23:46:52.466705Z,{}
+file:ch31-frontier-model-competence.md,file,chapters/ch31-frontier-model-competence.md,,2026-07-25T23:46:52.469619Z,2026-07-25T23:46:52.469619Z,{}
+file:ch32-ai-as-a-modular-tool.md,file,chapters/ch32-ai-as-a-modular-tool.md,,2026-07-25T23:46:52.472524Z,2026-07-25T23:46:52.472524Z,{}
+file:ch33-knowledge-graphs-and-localization.md,file,chapters/ch33-knowledge-graphs-and-localization.md,,2026-07-25T23:46:52.475448Z,2026-07-25T23:46:52.475448Z,{}
+file:ch34-epilogue.md,file,chapters/ch34-epilogue.md,,2026-07-25T23:46:52.478368Z,2026-07-25T23:46:52.478368Z,{}
+file:ch35-index.md,file,chapters/ch35-index.md,,2026-07-25T23:46:52.481440Z,2026-07-25T23:46:52.481440Z,{}
+file:ch36-end-notes-and-references.md,file,chapters/ch36-end-notes-and-references.md,,2026-07-25T23:46:52.484480Z,2026-07-25T23:46:52.484480Z,{}
+file:ch37-definitions.md,file,chapters/ch37-definitions.md,,2026-07-25T23:46:52.487437Z,2026-07-25T23:46:52.487437Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:3b69156b38,commit,"Add first real chapter frontmatter (ch01), proving the pipeline end-to-end",,2026-07-25T23:46:52.490369Z,2026-07-25T23:46:52.490369Z,{}
+file:ch01-thesis-and-origin-story.md,file,chapters/ch01-thesis-and-origin-story.md,,2026-07-25T23:46:52.493288Z,2026-07-25T23:46:52.493288Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:08433b4702,commit,"Capture live Scrivener dogfooding: native markdown, implicit guardrails",,2026-07-25T23:46:52.496208Z,2026-07-25T23:46:52.496208Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:0f85bfd506,commit,Rename chapters/ to a clean serial list (ch00-ch37),,2026-07-25T23:46:52.504885Z,2026-07-25T23:46:52.504885Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:6a04c03d81,commit,Add source material: first two Chaos Manor BYTE columns (1980),,2026-07-25T23:46:52.616333Z,2026-07-25T23:46:52.616333Z,{}
+file:1980-07_byte_v05n07_debut_sundry-other-matters.txt,file,sources/byte_chaos_manor/1980-07_byte_v05n07_debut_sundry-other-matters.txt,,2026-07-25T23:46:52.619255Z,2026-07-25T23:46:52.619255Z,{}
+file:1980-12_byte_v05n12_second-installment_basic-languages-adventures.txt,file,sources/byte_chaos_manor/1980-12_byte_v05n12_second-installment_basic-languages-adventures.txt,,2026-07-25T23:46:52.622169Z,2026-07-25T23:46:52.622169Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:d09b5807a3,commit,Re-sync chapters/ split with chapter 05d and the strata-of-AI addition,,2026-07-25T23:46:52.625091Z,2026-07-25T23:46:52.625091Z,{}
+file:ch04-voice.md,file,chapters/ch04-voice.md,,2026-07-25T23:46:52.628007Z,2026-07-25T23:46:52.628007Z,{}
+file:ch05d-limit-4.md,file,chapters/ch05d-limit-4.md,,2026-07-25T23:46:52.630937Z,2026-07-25T23:46:52.630937Z,{}
+file:ch09-the-real-reframe.md,file,chapters/ch09-the-real-reframe.md,,2026-07-25T23:46:52.633877Z,2026-07-25T23:46:52.633877Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:0bea5e9b9d,commit,Add chapter 05d (Limit 4: the Apple Siri hybrid counter-example),,2026-07-25T23:46:52.636808Z,2026-07-25T23:46:52.636808Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:a244fb5abb,commit,"Verify remaining flagged claims, adopt in-chapter footnote system",,2026-07-25T23:46:52.642617Z,2026-07-25T23:46:52.642617Z,{}
+file:ch03a-case-study-lynx-brotli.md,file,chapters/ch03a-case-study-lynx-brotli.md,,2026-07-25T23:46:52.645547Z,2026-07-25T23:46:52.645547Z,{}
+file:ch05b-limit-2.md,file,chapters/ch05b-limit-2.md,,2026-07-25T23:46:52.651330Z,2026-07-25T23:46:52.651330Z,{}
+file:ch11-is-this-the-real-risk-of-ai.md,file,chapters/ch11-is-this-the-real-risk-of-ai.md,,2026-07-25T23:46:52.654260Z,2026-07-25T23:46:52.654260Z,{}
+file:ch12-clean-room-llm.md,file,chapters/ch12-clean-room-llm.md,,2026-07-25T23:46:52.657211Z,2026-07-25T23:46:52.657211Z,{}
+file:ch12c-ai-as-a-modular-tool.md,file,chapters/ch12c-ai-as-a-modular-tool.md,,2026-07-25T23:46:52.660156Z,2026-07-25T23:46:52.660156Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:87c198f5e8,commit,"Add README, split chapters into individual files, add chapter 12d",,2026-07-25T23:46:52.665984Z,2026-07-25T23:46:52.665984Z,{}
+file:ch-1-introduction.md,file,chapters/ch-1-introduction.md,,2026-07-25T23:46:52.674689Z,2026-07-25T23:46:52.674689Z,{}
+file:ch00-prologue-thesis-notes.md,file,chapters/ch00-prologue-thesis-notes.md,,2026-07-25T23:46:52.677633Z,2026-07-25T23:46:52.677633Z,{}
+file:ch01-guardrails-and-anthropomorphization.md,file,chapters/ch01-guardrails-and-anthropomorphization.md,,2026-07-25T23:46:52.680588Z,2026-07-25T23:46:52.680588Z,{}
+file:ch02-conventional-guardrails-as-precedent.md,file,chapters/ch02-conventional-guardrails-as-precedent.md,,2026-07-25T23:46:52.683543Z,2026-07-25T23:46:52.683543Z,{}
+file:ch02a-disassembly-analogy.md,file,chapters/ch02a-disassembly-analogy.md,,2026-07-25T23:46:52.686509Z,2026-07-25T23:46:52.686509Z,{}
+file:ch02b-the-economic-argument-itself.md,file,chapters/ch02b-the-economic-argument-itself.md,,2026-07-25T23:46:52.689466Z,2026-07-25T23:46:52.689466Z,{}
+file:ch02c-the-counter-case.md,file,chapters/ch02c-the-counter-case.md,,2026-07-25T23:46:52.692435Z,2026-07-25T23:46:52.692435Z,{}
+file:ch03-sunk-costs-and-bell-lapadula.md,file,chapters/ch03-sunk-costs-and-bell-lapadula.md,,2026-07-25T23:46:52.695399Z,2026-07-25T23:46:52.695399Z,{}
+file:ch03b-lynx-safer-than-curl.md,file,chapters/ch03b-lynx-safer-than-curl.md,,2026-07-25T23:46:52.701266Z,2026-07-25T23:46:52.701266Z,{}
+file:ch04a-division-of-labor.md,file,chapters/ch04a-division-of-labor.md,,2026-07-25T23:46:52.707152Z,2026-07-25T23:46:52.707152Z,{}
+file:ch04b-the-classic-failure.md,file,chapters/ch04b-the-classic-failure.md,,2026-07-25T23:46:52.710108Z,2026-07-25T23:46:52.710108Z,{}
+file:ch04c-ai-is-harder-than-it-looks.md,file,chapters/ch04c-ai-is-harder-than-it-looks.md,,2026-07-25T23:46:52.713076Z,2026-07-25T23:46:52.713076Z,{}
+file:ch04d-the-capstone.md,file,chapters/ch04d-the-capstone.md,,2026-07-25T23:46:52.716066Z,2026-07-25T23:46:52.716066Z,{}
+file:ch04e-methodology.md,file,chapters/ch04e-methodology.md,,2026-07-25T23:46:52.719050Z,2026-07-25T23:46:52.719050Z,{}
+file:ch05-where-hybrid-architecture-breaks-down.md,file,chapters/ch05-where-hybrid-architecture-breaks-down.md,,2026-07-25T23:46:52.722037Z,2026-07-25T23:46:52.722037Z,{}
+file:ch05a-limit-1.md,file,chapters/ch05a-limit-1.md,,2026-07-25T23:46:52.725019Z,2026-07-25T23:46:52.725019Z,{}
+file:ch05c-limit-3.md,file,chapters/ch05c-limit-3.md,,2026-07-25T23:46:52.730930Z,2026-07-25T23:46:52.730930Z,{}
+file:ch06-is-a-native-mac-app-worth-it.md,file,chapters/ch06-is-a-native-mac-app-worth-it.md,,2026-07-25T23:46:52.733919Z,2026-07-25T23:46:52.733919Z,{}
+file:ch06a-the-proper-way-to-build.md,file,chapters/ch06a-the-proper-way-to-build.md,,2026-07-25T23:46:52.736897Z,2026-07-25T23:46:52.736897Z,{}
+file:ch06b-the-whole-premise-stated-plainly.md,file,chapters/ch06b-the-whole-premise-stated-plainly.md,,2026-07-25T23:46:52.739903Z,2026-07-25T23:46:52.739903Z,{}
+file:ch07-case-study-scrivener.md,file,chapters/ch07-case-study-scrivener.md,,2026-07-25T23:46:52.742902Z,2026-07-25T23:46:52.742902Z,{}
+file:ch08-case-study-ghost.md,file,chapters/ch08-case-study-ghost.md,,2026-07-25T23:46:52.745890Z,2026-07-25T23:46:52.745890Z,{}
+file:ch10-history-measurement-two-methodologies.md,file,chapters/ch10-history-measurement-two-methodologies.md,,2026-07-25T23:46:52.751841Z,2026-07-25T23:46:52.751841Z,{}
+file:ch12a-software-with-existing-apis.md,file,chapters/ch12a-software-with-existing-apis.md,,2026-07-25T23:46:52.760753Z,2026-07-25T23:46:52.760753Z,{}
+file:ch12b-frontier-model-competence.md,file,chapters/ch12b-frontier-model-competence.md,,2026-07-25T23:46:52.763765Z,2026-07-25T23:46:52.763765Z,{}
+file:ch12d-knowledge-graphs-ai-localization.md,file,chapters/ch12d-knowledge-graphs-ai-localization.md,,2026-07-25T23:46:52.769752Z,2026-07-25T23:46:52.769752Z,{}
+file:ch13-epilogue.md,file,chapters/ch13-epilogue.md,,2026-07-25T23:46:52.772777Z,2026-07-25T23:46:52.772777Z,{}
+file:ch14-index.md,file,chapters/ch14-index.md,,2026-07-25T23:46:52.775806Z,2026-07-25T23:46:52.775806Z,{}
+file:ch15-end-notes-references.md,file,chapters/ch15-end-notes-references.md,,2026-07-25T23:46:52.778823Z,2026-07-25T23:46:52.778823Z,{}
+file:ch16-definitions.md,file,chapters/ch16-definitions.md,,2026-07-25T23:46:52.781851Z,2026-07-25T23:46:52.781851Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:fc5a1ade22,commit,"Remove stale ""trailed off"" note in chapter 12c",,2026-07-25T23:46:52.787860Z,2026-07-25T23:46:52.787860Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:c484e3f172,commit,"Restructure into numbered chapters, add prologue origin story, chapter 12a-c, verified Hugging Face material",,2026-07-25T23:46:52.793871Z,2026-07-25T23:46:52.793871Z,{}
+commit:preventing_ai_overreach_with_hybrid_ai:83fbdcc24d,commit,"AI produced document based on mark's prompts assertions and corrections, spans over ~24 hours of writing prompts about this.",,2026-07-25T23:46:52.799860Z,2026-07-25T23:46:52.799860Z,{}
+session:preventing_ai_overreach_with_hybrid_ai:feedback_check_book_chapters_as_prior_art,session,"Before researching a new technical thread for this book, ghost-search the book's own chapters/ and working manuscript first — Mark has often already worked through the same ground, verified and cited.",,2026-07-25T23:47:03.016328Z,2026-07-25T23:47:03.016328Z,{}
+session:preventing_ai_overreach_with_hybrid_ai:feedback_design_thinking_not_ticket_clearing,session,"Mark wants this project treated as serious design work with Claude, not fast implementation/bug-fixing",,2026-07-25T23:47:03.020629Z,2026-07-25T23:47:03.020629Z,{}
+session:preventing_ai_overreach_with_hybrid_ai:feedback_impedance_matching_not_vendor_comparison,session,Mark's methodology is building custom bridge layers between AI and existing apps himself -- don't reframe it as comparing vendor AI-platform features,,2026-07-25T23:47:03.024038Z,2026-07-25T23:47:03.024038Z,{}
+session:preventing_ai_overreach_with_hybrid_ai:feedback_practice_claims_vs_external_facts,session,"Distinguish external checkable facts (verify these) from Mark's own practice-based claims (his use is the evidence, no third party needed)",,2026-07-25T23:47:03.027299Z,2026-07-25T23:47:03.027299Z,{}
+session:preventing_ai_overreach_with_hybrid_ai:feedback_scope_discipline_avoid_cleverness,session,"Don't feature technically clever prior art (Unix dispatch tricks, deep protocol lineage, etc.) in book prose — keep the book centered on the post-AI economics/architecture thesis, not a tour of cute technical patterns.",,2026-07-25T23:47:03.030665Z,2026-07-25T23:47:03.030665Z,{}
+session:preventing_ai_overreach_with_hybrid_ai:project_writing_surface,session,"Mature writing-tool product at ~/Documents/src/writing-surface/ — 60+ commits, full product spec, Scrivener bridge, story-structure templates, promise/continuity tracking. Check before building any new writing/AI-authoring tooling.",,2026-07-25T23:47:03.033923Z,2026-07-25T23:47:03.033923Z,{}
